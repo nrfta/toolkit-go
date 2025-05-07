@@ -7,6 +7,7 @@ require (
 	github.com/graph-gophers/dataloader/v7 v7.1.0
 	github.com/neighborly/go-errors v0.3.2
 	github.com/rs/xid v1.6.0
+	golang.org/x/exp v0.0.0-20250506013437-ce4c2cf36ca6
 )
 
 require github.com/pkg/errors v0.9.1 // indirect
