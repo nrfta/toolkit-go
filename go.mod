@@ -3,11 +3,13 @@ module github.com/nrfta/toolkit-go
 go 1.24.2
 
 require (
-	github.com/google/uuid v1.6.0
-	github.com/graph-gophers/dataloader/v7 v7.1.0
-	github.com/neighborly/go-errors v0.3.2
-	github.com/rs/xid v1.6.0
-	golang.org/x/exp v0.0.0-20250506013437-ce4c2cf36ca6
+github.com/google/uuid v1.6.0
+github.com/graph-gophers/dataloader/v7 v7.1.0
+github.com/neighborly/go-errors v0.3.2
+github.com/rs/xid v1.6.0
+golang.org/x/exp v0.0.0-20250506013437-ce4c2cf36ca6
+github.com/onsi/ginkgo/v2 v2.15.0 // indirect
+github.com/onsi/gomega v1.27.10 // indirect
 )
 
 require github.com/pkg/errors v0.9.1 // indirect
