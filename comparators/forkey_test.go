@@ -42,6 +42,30 @@ var _ = Describe("ForKey", func() {
 		Expect(s.Eq).NotTo(BeNil())
 	})
 
+	It("separates neq by xid", func() {
+		key := (&comparators.ID{}).NEQ(xid.New().String())
+		x, u, s := comparators.ForKey(key)
+		Expect(x.Neq).NotTo(BeNil())
+		Expect(u.Neq).To(BeNil())
+		Expect(s.Neq).To(BeNil())
+	})
+
+	It("separates neq by uuid", func() {
+		key := (&comparators.ID{}).NEQ(uuid.NewString())
+		x, u, s := comparators.ForKey(key)
+		Expect(x.Neq).To(BeNil())
+		Expect(u.Neq).NotTo(BeNil())
+		Expect(s.Neq).To(BeNil())
+	})
+
+	It("separates neq by slug", func() {
+		key := (&comparators.ID{}).NEQ("slug")
+		x, u, s := comparators.ForKey(key)
+		Expect(x.Neq).To(BeNil())
+		Expect(u.Neq).To(BeNil())
+		Expect(s.Neq).NotTo(BeNil())
+	})
+
 	It("splits IN values", func() {
 		xidVal := xid.New().String()
 		uuidVal := uuid.NewString()
