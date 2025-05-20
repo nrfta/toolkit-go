@@ -17,4 +17,5 @@ jobs:
       - uses: nrfta/action-change-management@v1
     env:
       ASANA_API_TOKEN: '${{ secrets.ASANA_API_TOKEN }}'
-      GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
+      GITHUB_TOKEN: '${{ secrets.PACKAGE_TOKEN }}'
+
