@@ -1,8 +1,81 @@
 # Underline's Go Toolkit
 
-A group of packages which contain "utility" functions and helper methods.
-The reason for creating this is so we can unify our helper functions and remove duplication of code.
+A collection of packages used across our Go projects. It provides common helpers and patterns so that code can be shared instead of duplicated.
 
-## GraphQL Helper Types
+## Requirements
 
-Comparator structs in `toolkit-go/comparators` can be mapped directly into your GraphQL schema when using [gqlgen](https://github.com/99designs/gqlgen). Example input types live in `comparators/schema.graphqls` and can be copied into your project's schema, e.g. `internal/transport/gql/schemas/comparators.graphqls`.
+- Go **1.24** or newer
+
+## Installation
+
+```bash
+go get github.com/nrfta/toolkit-go
+```
+
+Add the module to your `go.mod` and import the packages you need.
+
+## Packages
+
+### `comparators`
+
+Helpers for building GraphQL filter input types. The package includes structs such as `ID`, `Boolean`, `Enum[T]` and more. Each type exposes chaining helpers (e.g. `EQ`, `NEQ`, `IN`, `NIN`) and an `IsSet` method to determine if any fields have been populated.
+
+To use them with [gqlgen](https://github.com/99designs/gqlgen), copy the definitions from [`comparators/schema.graphqls`](comparators/schema.graphqls) into your schema:
+
+```graphql
+# comparators.graphqls
+input IDComparator @goModel(model: "github.com/nrfta/toolkit-go/comparators.ID") {
+  eq: ID
+  neq: ID
+  in: [ID!]
+  nin: [ID!]
+}
+```
+
+Now you can bind `IDComparator` (or any other comparator) directly in your resolver arguments.
+
+### `dataloader`
+
+Utilities for constructing functions for the [`graph-gophers/dataloader`](https://github.com/graph-gophers/dataloader) library (import path `github.com/graph-gophers/dataloader/v7`). The generic helpers return functions compatible with the library's `Loader` type. Example:
+
+```go
+import dl "github.com/graph-gophers/dataloader/v7"
+
+loader := dl.NewBatchedLoader(
+    dataloader.BatchedLoaderFn(fetchUsers, userKeys, errNotFound),
+)
+```
+
+### `must`
+
+Small validation helpers that return `github.com/neighborly/go-errors` errors. Examples include `BeUUID`, `BeXID`, `BeNonZero`, and range checks such as `BeBetween`.
+
+```go
+if err := must.BeUUID(id); err != nil {
+    // handle invalid ID
+}
+```
+
+## Contributing
+
+- Format the code before committing:
+  ```bash
+  go fmt ./...
+  ```
+- Ensure `go.mod` is tidy:
+  ```bash
+  go mod tidy
+  ```
+- Run the test suite:
+  ```bash
+  go test ./...
+  ```
+
+## Testing
+
+Run all unit tests with:
+
+```bash
+go test ./...
+```
+
