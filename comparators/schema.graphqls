@@ -1,0 +1,74 @@
+"""
+IDComparator is used to filter results based on exact matches or exclusions of ID values.
+"""
+input IDComparator
+  @goModel(model: "github.com/nrfta/toolkit-go/comparators.ID") {
+  """
+  Checks if the ID is equal to the provided value.
+  """
+  eq: ID
+
+  """
+  Checks if the ID is not equal to the provided value.
+  """
+  neq: ID
+
+  """
+  Checks if the ID is within the provided list of values.
+  """
+  in: [ID!]
+
+  """
+  Checks if the ID is not within the provided list of values.
+  """
+  nin: [ID!]
+}
+
+"""
+NullableIDComparator is used to filter results based on exact matches or exclusions of ID values,
+including the ability to filter on null values.
+"""
+input NullableIDComparator
+  @goModel(model: "github.com/nrfta/toolkit-go/comparators.NullableID") {
+  """
+  Checks if the ID is equal to the provided value.
+  """
+  eq: ID
+
+  """
+  Checks if the ID is not equal to the provided value.
+  """
+  neq: ID
+
+  """
+  Checks if the ID is within the provided list of values.
+  """
+  in: [ID!]
+
+  """
+  Checks if the ID is not within the provided list of values.
+  """
+  nin: [ID!]
+
+  """
+  If true, checks if the ID is null. If false, matches any non-null values.
+  """
+  null: Boolean
+}
+
+"""
+BooleanComparator is used to filter results based on boolean values.
+It supports equality and inequality comparisons.
+"""
+input BooleanComparator
+  @goModel(model: "github.com/nrfta/toolkit-go/comparators.Boolean") {
+  """
+  Checks if the boolean field is equal to the provided value.
+  """
+  eq: Boolean
+
+  """
+  Checks if the boolean field is not equal to the provided value.
+  """
+  neq: Boolean
+}
