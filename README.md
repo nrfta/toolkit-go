@@ -46,6 +46,41 @@ loader := dl.NewBatchedLoader(
 )
 ```
 
+To use these helpers with your own store implementation you can wrap the
+fetching logic in small methods that construct `dataloader.Loader` instances:
+
+```go
+type Loaders struct {
+    UserByID *dataloader.Loader[string, *user.User]
+}
+
+type loaderMethods struct{ store store.Store }
+
+func (l loaderMethods) NewUserByID() *dataloader.Loader[string, *user.User] {
+    return dataloader.NewBatchedLoader(
+        dataloader.BatchedLoaderFn(
+            func(ctx context.Context, ids []string) ([]*user.User, error) {
+                return l.store.Users().GetAll(ctx, user.Filter{
+                    ID: &comparators.ID{In: ids},
+                })
+            },
+            func(u *user.User) []string { return []string{u.ID} },
+            user.ErrNotFound,
+        ),
+    )
+}
+
+func NewLoaders(store store.Store) *Loaders {
+    m := loaderMethods{store: store}
+    return &Loaders{
+        UserByID: m.NewUserByID(),
+    }
+}
+```
+
+This approach keeps the database fetching logic in your store package while
+exposing dataloaders for efficient batched access.
+
 ### `must`
 
 Small validation helpers that return `github.com/neighborly/go-errors` errors. Examples include `BeUUID`, `BeXID`, `BeNonZero`, and range checks such as `BeBetween`.
