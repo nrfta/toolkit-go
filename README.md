@@ -81,6 +81,31 @@ func NewLoaders(store store.Store) *Loaders {
 This approach keeps the database fetching logic in your store package while
 exposing dataloaders for efficient batched access.
 
+### `dataloaders`
+
+HTTP middleware for storing a loader collection in the request context. Provide
+a constructor function that builds your dataloaders and pass it to
+`dataloaders.Middleware`:
+
+```go
+func newLoaders(r *http.Request) *Loaders {
+    return NewLoaders(store)
+}
+
+router := mux.NewRouter()
+router.Use(dataloaders.Middleware(newLoaders))
+```
+
+Handlers can later retrieve the loaders with `dataloaders.For`:
+
+```go
+func usersHandler(w http.ResponseWriter, r *http.Request) {
+    l := dataloaders.For[*Loaders](r.Context())
+    user, err := l.UserByID.Load(r.Context(), id)()
+    // ...
+}
+```
+
 ### `must`
 
 Small validation helpers that return `github.com/neighborly/go-errors` errors. Examples include `BeUUID`, `BeXID`, `BeNonZero`, and range checks such as `BeBetween`.
