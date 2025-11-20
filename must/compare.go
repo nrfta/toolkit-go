@@ -2,6 +2,7 @@ package must
 
 import (
 	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/neighborly/go-errors"
@@ -33,7 +34,24 @@ func BeNonZero(input any, displayMsg ...string) error {
 			err = errors.InvalidArgument.Newf("must not be zero")
 		}
 	default:
-		return fmt.Errorf("must be non zero: invalid type %T", input)
+		// Use reflection to handle custom types based on string or numeric types
+		v := reflect.ValueOf(input)
+		switch v.Kind() {
+		case reflect.String:
+			if v.String() == "" {
+				err = errors.InvalidArgument.Newf("must not be empty")
+			}
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			if v.Int() == 0 {
+				err = errors.InvalidArgument.Newf("must not be zero")
+			}
+		case reflect.Float32, reflect.Float64:
+			if v.Float() == 0 {
+				err = errors.InvalidArgument.Newf("must not be zero")
+			}
+		default:
+			return fmt.Errorf("must be non zero: invalid type %T", input)
+		}
 	}
 
 	return withDisplayMessage(err, displayMsg...)
