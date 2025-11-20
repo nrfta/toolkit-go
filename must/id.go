@@ -7,18 +7,18 @@ import (
 )
 
 // BeXID checks if the given string is a valid XID, returns an invalid argument error if it is not.
-func BeXID(id string) error {
+func BeXID(id string, msg ...string) error {
 	if _, err := xid.FromString(id); err != nil {
-		return errors.InvalidArgument.Newf("must be a valid XID")
+		return withDisplayMessage(errors.InvalidArgument.Newf("must be a valid XID"), msg...)
 	}
 
 	return nil
 }
 
 // BeUUID checks if the given string is a valid UUID, returns an invalid argument error if it is not.
-func BeUUID(id string) error {
+func BeUUID(id string, msg ...string) error {
 	if _, err := uuid.Parse(id); err != nil {
-		return errors.InvalidArgument.New("must be a valid UUID")
+		return withDisplayMessage(errors.InvalidArgument.New("must be a valid UUID"), msg...)
 	}
 
 	return nil

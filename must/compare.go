@@ -8,6 +8,14 @@ import (
 	"golang.org/x/exp/constraints"
 )
 
+// withDisplayMessage is a helper that optionally wraps an error with a display message
+func withDisplayMessage(err error, msg ...string) error {
+	if err != nil && len(msg) > 0 && msg[0] != "" {
+		return errors.WithDisplayMessage(err, msg[0])
+	}
+	return err
+}
+
 func BeNonZero(input any, msg ...string) error {
 	var err error
 
@@ -28,20 +36,12 @@ func BeNonZero(input any, msg ...string) error {
 		return fmt.Errorf("must be non zero: invalid type %T", input)
 	}
 
-	if err != nil && len(msg) > 0 && msg[0] != "" {
-		return errors.WithDisplayMessage(err, msg[0])
-	}
-
-	return err
+	return withDisplayMessage(err, msg...)
 }
 
 func BeTimeGreaterThan(input, low time.Time, msg ...string) error {
 	if !input.After(low) {
-		err := errors.InvalidArgument.Newf("must be after %v", low)
-		if len(msg) > 0 && msg[0] != "" {
-			return errors.WithDisplayMessage(err, msg[0])
-		}
-		return err
+		return withDisplayMessage(errors.InvalidArgument.Newf("must be after %v", low), msg...)
 	}
 
 	return nil
@@ -49,11 +49,7 @@ func BeTimeGreaterThan(input, low time.Time, msg ...string) error {
 
 func BeGreaterThan[T constraints.Ordered](input, low T, msg ...string) error {
 	if input <= low {
-		err := errors.InvalidArgument.Newf("must be greater than %v", low)
-		if len(msg) > 0 && msg[0] != "" {
-			return errors.WithDisplayMessage(err, msg[0])
-		}
-		return err
+		return withDisplayMessage(errors.InvalidArgument.Newf("must be greater than %v", low), msg...)
 	}
 
 	return nil
@@ -65,11 +61,7 @@ func BeBetween[T constraints.Ordered](input, low, high T, msg ...string) error {
 	}
 
 	if input < low || input > high {
-		err := errors.InvalidArgument.Newf("must be between %v and %v", low, high)
-		if len(msg) > 0 && msg[0] != "" {
-			return errors.WithDisplayMessage(err, msg[0])
-		}
-		return err
+		return withDisplayMessage(errors.InvalidArgument.Newf("must be between %v and %v", low, high), msg...)
 	}
 
 	return nil
@@ -77,11 +69,7 @@ func BeBetween[T constraints.Ordered](input, low, high T, msg ...string) error {
 
 func BeNonEmptySlice(slice []any, msg ...string) error {
 	if len(slice) == 0 {
-		err := errors.InvalidArgument.New("slice must not be empty")
-		if len(msg) > 0 && msg[0] != "" {
-			return errors.WithDisplayMessage(err, msg[0])
-		}
-		return err
+		return withDisplayMessage(errors.InvalidArgument.New("slice must not be empty"), msg...)
 	}
 
 	return nil
