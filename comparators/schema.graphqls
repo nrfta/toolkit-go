@@ -72,3 +72,102 @@ input BooleanComparator
   """
   neq: Boolean
 }
+
+"""
+StringComparator is used to filter results based on string values with pattern matching capabilities.
+"""
+input StringComparator
+  @goModel(model: "github.com/nrfta/toolkit-go/comparators.String") {
+  """
+  Checks if the string is equal to the provided value.
+  """
+  eq: String
+
+  """
+  Checks if the string is not equal to the provided value.
+  """
+  neq: String
+
+  """
+  Checks if the string is within the provided list of values.
+  """
+  in: [String!]
+
+  """
+  Checks if the string is not within the provided list of values.
+  """
+  nin: [String!]
+
+  """
+  Performs a case-insensitive substring match.
+  """
+  contains: String
+
+  """
+  Performs a case-insensitive substring exclusion match.
+  """
+  notContains: String
+}
+
+"""
+SimpleStringComparator provides basic string comparisons without pattern matching.
+"""
+input SimpleStringComparator
+  @goModel(model: "github.com/nrfta/toolkit-go/comparators.SimpleString") {
+  """
+  Checks if the string is equal to the provided value.
+  """
+  eq: String
+
+  """
+  Checks if the string is not equal to the provided value.
+  """
+  neq: String
+
+  """
+  Checks if the string is within the provided list of values.
+  """
+  in: [String!]
+}
+
+"""
+NullableStringComparator is used to filter results based on string values with pattern matching capabilities,
+including the ability to filter on null values.
+"""
+input NullableStringComparator
+  @goModel(model: "github.com/nrfta/toolkit-go/comparators.NullableString") {
+  """
+  Checks if the string is equal to the provided value.
+  """
+  eq: String
+
+  """
+  Checks if the string is not equal to the provided value.
+  """
+  neq: String
+
+  """
+  Checks if the string is within the provided list of values.
+  """
+  in: [String!]
+
+  """
+  Checks if the string is not within the provided list of values.
+  """
+  nin: [String!]
+
+  """
+  Performs a case-insensitive substring match.
+  """
+  contains: String
+
+  """
+  Performs a case-insensitive substring exclusion match.
+  """
+  notContains: String
+
+  """
+  If true, checks if the string is null. If false, matches any non-null values.
+  """
+  null: Boolean
+}
