@@ -9,10 +9,14 @@ import (
 	"golang.org/x/exp/constraints"
 )
 
-// withDisplayMessage is a helper that optionally wraps an error with a display message
+// withDisplayMessage is a helper that optionally wraps an error with a display message.
+// When a display message is provided, it's included in both the error message and as a display message.
 func withDisplayMessage(err error, displayMsg ...string) error {
 	if err != nil && len(displayMsg) > 0 && displayMsg[0] != "" {
-		return errors.WithDisplayMessage(err, displayMsg[0])
+		// Wrap the error with the display message in the error text
+		wrappedErr := fmt.Errorf("%s: %w", displayMsg[0], err)
+		// Also attach the display message for API responses
+		return errors.WithDisplayMessage(wrappedErr, displayMsg[0])
 	}
 	return err
 }
