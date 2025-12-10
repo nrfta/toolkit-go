@@ -50,8 +50,9 @@ var _ = Describe("Compare helpers", func() {
 		It("returns error with custom display message when provided", func() {
 			err := must.BeNonZero("", "Custom error message")
 			Expect(err).To(HaveOccurred())
-			// Note: we can't easily test the display message without importing errors package
-			// but the implementation wraps with errors.WithDisplayMessage
+			// Verify the display message is included in the error string
+			Expect(err.Error()).To(ContainSubstring("Custom error message"))
+			Expect(err.Error()).To(ContainSubstring("must not be empty"))
 		})
 
 		It("works without message parameter (backward compatibility)", func() {
