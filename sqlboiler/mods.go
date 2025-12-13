@@ -255,3 +255,181 @@ func ModsForStringComparator(
 
 	return queryMods
 }
+
+func ModsForBooleanComparator(
+	tableName,
+	columnName string,
+	comparator *comparators.Boolean,
+) []qm.QueryMod {
+	if comparator == nil {
+		return nil
+	}
+
+	var queryMods []qm.QueryMod
+	columnName = formatColumnName(tableName, columnName)
+
+	if comparator.Eq != nil {
+		queryMods = append(queryMods, qm.Where(
+			fmt.Sprintf("%s = ?", columnName),
+			*comparator.Eq,
+		))
+	}
+
+	if comparator.Neq != nil {
+		queryMods = append(queryMods, qm.Where(
+			fmt.Sprintf("%s != ?", columnName),
+			*comparator.Neq,
+		))
+	}
+
+	return queryMods
+}
+
+func ModsForNullableIDComparator(
+	tableName,
+	columnName string,
+	comparator *comparators.NullableID,
+) []qm.QueryMod {
+	if comparator == nil {
+		return nil
+	}
+
+	var queryMods []qm.QueryMod
+	columnName = formatColumnName(tableName, columnName)
+
+	var orNull string
+	if comparator.Null != nil && *comparator.Null {
+		orNull = fmt.Sprintf(" OR %s IS NULL", columnName)
+	}
+
+	if comparator.Eq != nil {
+		queryMods = append(queryMods, qm.Where(
+			fmt.Sprintf("(%s = ?%s)", columnName, orNull),
+			comparator.Eq,
+		))
+	}
+
+	if len(comparator.In) > 0 {
+		queryMods = append(
+			queryMods,
+			qm.WhereIn(
+				fmt.Sprintf("(%s IN ?%s)", columnName, orNull),
+				WhereInSet(comparator.In)...,
+			),
+		)
+	}
+
+	if comparator.Neq != nil {
+		queryMods = append(
+			queryMods,
+			qm.Where(
+				fmt.Sprintf("(%s != ?%s)", columnName, orNull),
+				comparator.Neq,
+			),
+		)
+	}
+
+	if len(comparator.Nin) > 0 {
+		queryMods = append(
+			queryMods,
+			qm.WhereNotIn(
+				fmt.Sprintf("(%s NOT IN ?%s)", columnName, orNull),
+				WhereInSet(comparator.Nin)...,
+			),
+		)
+	}
+
+	if len(queryMods) == 0 && comparator.Null != nil {
+		if *comparator.Null {
+			queryMods = append(queryMods, qm.Where(
+				fmt.Sprintf("%s IS NULL", columnName),
+			))
+		} else {
+			queryMods = append(queryMods, qm.Where(
+				fmt.Sprintf("%s IS NOT NULL", columnName),
+			))
+		}
+	}
+
+	return queryMods
+}
+
+func ModsForNullableStringComparator(
+	tableName,
+	columnName string,
+	comparator *comparators.NullableString,
+) []qm.QueryMod {
+	if comparator == nil {
+		return nil
+	}
+
+	var queryMods []qm.QueryMod
+	columnName = formatColumnName(tableName, columnName)
+
+	var orNull string
+	if comparator.Null != nil && *comparator.Null {
+		orNull = fmt.Sprintf(" OR %s IS NULL", columnName)
+	}
+
+	if comparator.Eq != nil {
+		queryMods = append(queryMods, qm.Where(
+			fmt.Sprintf("(%s = ?%s)", columnName, orNull),
+			comparator.Eq,
+		))
+	}
+
+	if comparator.Neq != nil {
+		queryMods = append(queryMods, qm.Where(
+			fmt.Sprintf("(%s != ?%s)", columnName, orNull),
+			comparator.Neq,
+		))
+	}
+
+	if len(comparator.In) > 0 {
+		queryMods = append(
+			queryMods,
+			qm.WhereIn(
+				fmt.Sprintf("(%s IN ?%s)", columnName, orNull),
+				WhereInSet(comparator.In)...,
+			),
+		)
+	}
+
+	if len(comparator.Nin) > 0 {
+		queryMods = append(
+			queryMods,
+			qm.WhereNotIn(
+				fmt.Sprintf("(%s NOT IN ?%s)", columnName, orNull),
+				WhereInSet(comparator.Nin)...,
+			),
+		)
+	}
+
+	if comparator.Contains != nil {
+		queryMods = append(queryMods, qm.Where(
+			fmt.Sprintf("(%s ILIKE ?%s)", columnName, orNull),
+			fmt.Sprintf("%%%s%%", *comparator.Contains),
+		))
+	}
+
+	if comparator.NotContains != nil {
+		queryMods = append(queryMods, qm.Where(
+			fmt.Sprintf("(%s NOT ILIKE ?%s)", columnName, orNull),
+			fmt.Sprintf("%%%s%%", *comparator.NotContains),
+		))
+	}
+
+	if len(queryMods) == 0 && comparator.Null != nil {
+		if *comparator.Null {
+			queryMods = append(queryMods, qm.Where(
+				fmt.Sprintf("%s IS NULL", columnName),
+			))
+		} else {
+			queryMods = append(queryMods, qm.Where(
+				fmt.Sprintf("%s IS NOT NULL", columnName),
+			))
+		}
+	}
+
+	return queryMods
+}

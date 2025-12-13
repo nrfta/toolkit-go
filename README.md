@@ -125,6 +125,9 @@ Utilities for converting `comparators` to [SQLBoiler](https://github.com/volatil
 - `ModsForStringComparator()` - Convert string comparators with ILIKE support
 - `ModsForEnumComparator[T]()` - Generic enum comparator converter
 - `ModsForSimpleStringComparator()` - Basic string equality/in filters
+- `ModsForBooleanComparator()` - Convert boolean comparators (Eq, Neq)
+- `ModsForNullableIDComparator()` - Convert nullable ID comparators with NULL constraint support
+- `ModsForNullableStringComparator()` - Convert nullable string comparators with NULL constraint and ILIKE support
 
 **Generic Helpers:**
 - `Mods[T]()` - Convert filter slices to QueryMods using a converter function
