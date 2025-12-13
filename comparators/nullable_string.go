@@ -2,14 +2,14 @@ package comparators
 
 // NullableString is a string comparator with an optional NULL constraint and pattern matching capabilities.
 type NullableString struct {
-	Eq          *string  `json:"eq,omitempty"`
-	Neq         *string  `json:"neq,omitempty"`
-	In          []string `json:"in,omitempty"`
-	Nin         []string `json:"nin,omitempty"`
+	Eq  *string  `json:"eq,omitempty"`
+	Neq *string  `json:"neq,omitempty"`
+	In  []string `json:"in,omitempty"`
+	Nin []string `json:"nin,omitempty"`
 	// Contains performs a case-insensitive substring match
-	Contains    *string  `json:"contains,omitempty"`
+	Contains *string `json:"contains,omitempty"`
 	// NotContains performs a case-insensitive substring exclusion match
-	NotContains *string  `json:"notContains,omitempty"`
+	NotContains *string `json:"notContains,omitempty"`
 	// Null constraint. Matches any non-null values if the given value is false,
 	// otherwise it matches null values.
 	Null *bool `json:"null,omitempty"`
