@@ -47,6 +47,23 @@ func formatColumnName(tableName, columnName string) string {
 	return columnName
 }
 
+func formatOrNullClause(columnName string, null *bool) string {
+	if null != nil && *null {
+		return fmt.Sprintf(" OR %s IS NULL", columnName)
+	}
+	return ""
+}
+
+func appendStandaloneNullConstraint(queryMods []qm.QueryMod, columnName string, null *bool) []qm.QueryMod {
+	if len(queryMods) == 0 && null != nil {
+		if *null {
+			return append(queryMods, qm.Where(fmt.Sprintf("%s IS NULL", columnName)))
+		}
+		return append(queryMods, qm.Where(fmt.Sprintf("%s IS NOT NULL", columnName)))
+	}
+	return queryMods
+}
+
 func ModsForIDComparator(
 	tableName,
 	columnName string,
@@ -296,80 +313,7 @@ func ModsForNullableIDComparator(
 
 	var queryMods []qm.QueryMod
 	columnName = formatColumnName(tableName, columnName)
-
-	var orNull string
-	if comparator.Null != nil && *comparator.Null {
-		orNull = fmt.Sprintf(" OR %s IS NULL", columnName)
-	}
-
-	if comparator.Eq != nil {
-		queryMods = append(queryMods, qm.Where(
-			fmt.Sprintf("(%s = ?%s)", columnName, orNull),
-			comparator.Eq,
-		))
-	}
-
-	if len(comparator.In) > 0 {
-		queryMods = append(
-			queryMods,
-			qm.WhereIn(
-				fmt.Sprintf("(%s IN ?%s)", columnName, orNull),
-				WhereInSet(comparator.In)...,
-			),
-		)
-	}
-
-	if comparator.Neq != nil {
-		queryMods = append(
-			queryMods,
-			qm.Where(
-				fmt.Sprintf("(%s != ?%s)", columnName, orNull),
-				comparator.Neq,
-			),
-		)
-	}
-
-	if len(comparator.Nin) > 0 {
-		queryMods = append(
-			queryMods,
-			qm.WhereNotIn(
-				fmt.Sprintf("(%s NOT IN ?%s)", columnName, orNull),
-				WhereInSet(comparator.Nin)...,
-			),
-		)
-	}
-
-	if len(queryMods) == 0 && comparator.Null != nil {
-		if *comparator.Null {
-			queryMods = append(queryMods, qm.Where(
-				fmt.Sprintf("%s IS NULL", columnName),
-			))
-		} else {
-			queryMods = append(queryMods, qm.Where(
-				fmt.Sprintf("%s IS NOT NULL", columnName),
-			))
-		}
-	}
-
-	return queryMods
-}
-
-func ModsForNullableStringComparator(
-	tableName,
-	columnName string,
-	comparator *comparators.NullableString,
-) []qm.QueryMod {
-	if comparator == nil {
-		return nil
-	}
-
-	var queryMods []qm.QueryMod
-	columnName = formatColumnName(tableName, columnName)
-
-	var orNull string
-	if comparator.Null != nil && *comparator.Null {
-		orNull = fmt.Sprintf(" OR %s IS NULL", columnName)
-	}
+	orNull := formatOrNullClause(columnName, comparator.Null)
 
 	if comparator.Eq != nil {
 		queryMods = append(queryMods, qm.Where(
@@ -386,23 +330,61 @@ func ModsForNullableStringComparator(
 	}
 
 	if len(comparator.In) > 0 {
-		queryMods = append(
-			queryMods,
-			qm.WhereIn(
-				fmt.Sprintf("(%s IN ?%s)", columnName, orNull),
-				WhereInSet(comparator.In)...,
-			),
-		)
+		queryMods = append(queryMods, qm.WhereIn(
+			fmt.Sprintf("(%s IN ?%s)", columnName, orNull),
+			WhereInSet(comparator.In)...,
+		))
 	}
 
 	if len(comparator.Nin) > 0 {
-		queryMods = append(
-			queryMods,
-			qm.WhereNotIn(
-				fmt.Sprintf("(%s NOT IN ?%s)", columnName, orNull),
-				WhereInSet(comparator.Nin)...,
-			),
-		)
+		queryMods = append(queryMods, qm.WhereNotIn(
+			fmt.Sprintf("(%s NOT IN ?%s)", columnName, orNull),
+			WhereInSet(comparator.Nin)...,
+		))
+	}
+
+	return appendStandaloneNullConstraint(queryMods, columnName, comparator.Null)
+}
+
+func ModsForNullableStringComparator(
+	tableName,
+	columnName string,
+	comparator *comparators.NullableString,
+) []qm.QueryMod {
+	if comparator == nil {
+		return nil
+	}
+
+	var queryMods []qm.QueryMod
+	columnName = formatColumnName(tableName, columnName)
+	orNull := formatOrNullClause(columnName, comparator.Null)
+
+	if comparator.Eq != nil {
+		queryMods = append(queryMods, qm.Where(
+			fmt.Sprintf("(%s = ?%s)", columnName, orNull),
+			comparator.Eq,
+		))
+	}
+
+	if comparator.Neq != nil {
+		queryMods = append(queryMods, qm.Where(
+			fmt.Sprintf("(%s != ?%s)", columnName, orNull),
+			comparator.Neq,
+		))
+	}
+
+	if len(comparator.In) > 0 {
+		queryMods = append(queryMods, qm.WhereIn(
+			fmt.Sprintf("(%s IN ?%s)", columnName, orNull),
+			WhereInSet(comparator.In)...,
+		))
+	}
+
+	if len(comparator.Nin) > 0 {
+		queryMods = append(queryMods, qm.WhereNotIn(
+			fmt.Sprintf("(%s NOT IN ?%s)", columnName, orNull),
+			WhereInSet(comparator.Nin)...,
+		))
 	}
 
 	if comparator.Contains != nil {
@@ -419,17 +401,5 @@ func ModsForNullableStringComparator(
 		))
 	}
 
-	if len(queryMods) == 0 && comparator.Null != nil {
-		if *comparator.Null {
-			queryMods = append(queryMods, qm.Where(
-				fmt.Sprintf("%s IS NULL", columnName),
-			))
-		} else {
-			queryMods = append(queryMods, qm.Where(
-				fmt.Sprintf("%s IS NOT NULL", columnName),
-			))
-		}
-	}
-
-	return queryMods
+	return appendStandaloneNullConstraint(queryMods, columnName, comparator.Null)
 }
