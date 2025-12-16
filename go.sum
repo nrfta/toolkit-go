@@ -56,8 +56,8 @@ github.com/mfridman/tparse v0.18.0 h1:wh6dzOKaIwkUGyKgOntDW4liXSo37qg5AXbIhkMV3v
 github.com/mfridman/tparse v0.18.0/go.mod h1:gEvqZTuCgEhPbYk/2lS3Kcxg1GmTxxU7kTC8DvP0i/A=
 github.com/neighborly/go-errors v0.3.2 h1:JOrz6DhL8X498uWUW4aX1zIXKDzia/dP5GQZLgY4FlI=
 github.com/neighborly/go-errors v0.3.2/go.mod h1:UqMUPb+2EVrSQxHZAEgWv/9CjXgaZU+55JYmCVdexgA=
-github.com/nrfta/paging-go/v2 v2.0.0 h1:98nr6M32daikn/mcC8zxhu7q+q0bGKe0yKY0R+uIYcQ=
-github.com/nrfta/paging-go/v2 v2.0.0/go.mod h1:yFOtknoOzxki3bS9mdIyWoAEO/hLomIQ5BhjNfhsBsw=
+github.com/nrfta/paging-go/v2 v2.1.0 h1:c8yj4EShh0+/VMo0q77O7r8WzTOKHNNL3i3fqDvfotQ=
+github.com/nrfta/paging-go/v2 v2.1.0/go.mod h1:yFOtknoOzxki3bS9mdIyWoAEO/hLomIQ5BhjNfhsBsw=
 github.com/onsi/ginkgo v1.6.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
 github.com/onsi/ginkgo v1.11.0 h1:JAKSXpt1YjtLA7YpPiqO9ss6sNXEsPfSGdwN0UHqzrw=
 github.com/onsi/ginkgo v1.11.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=

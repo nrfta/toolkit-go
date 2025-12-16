@@ -7,7 +7,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/graph-gophers/dataloader/v7 v7.1.0
 	github.com/neighborly/go-errors v0.3.2
-	github.com/nrfta/paging-go/v2 v2.0.0
+	github.com/nrfta/paging-go/v2 v2.1.0
 	github.com/onsi/ginkgo/v2 v2.27.3
 	github.com/onsi/gomega v1.38.3
 	github.com/rs/xid v1.6.0

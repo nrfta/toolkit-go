@@ -6,7 +6,8 @@
       "Bash(go test:*)",
       "Bash(go fmt:*)",
       "Bash(find:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(git add:*)"
     ]
   }
 }

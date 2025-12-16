@@ -17,7 +17,7 @@ import (
 const (
 	// With authorization filter: More conservative limits to avoid over-fetching
 	quotaFillMaxIterationsWithAuth = 5               // Maximum fetch iterations to fill page quota
-	quotaFillMaxRecordsExamined    = 500             // Maximum total records to examine
+	quotaFillMaxRecordsExamined    = 500             // Maximum total records to examine across all iterations
 	quotaFillTimeout               = 3 * time.Second // Maximum time for pagination query
 
 	// Without authorization filter: Single iteration with higher record limit
@@ -70,10 +70,13 @@ func (r *GenericRepository[D, F, M, S]) paginateWithAuth(
 		filterMods: filterMods,
 	}
 
-	var dbAuthFilter func(context.Context, []M) ([]M, error)
 	maxIterations := quotaFillMaxIterationsNoAuth
+	dbAuthFilter := func(_ context.Context, items []M) ([]M, error) {
+		return items, nil
+	}
 
 	if filterAuthorizedIDs != nil {
+		maxIterations = quotaFillMaxIterationsWithAuth
 		dbAuthFilter = func(ctx context.Context, dbItems []M) ([]M, error) {
 			ids := make([]string, len(dbItems))
 			for i, dbItem := range dbItems {
@@ -90,20 +93,13 @@ func (r *GenericRepository[D, F, M, S]) paginateWithAuth(
 				authorizedSet[id] = true
 			}
 
-			authorizedDB := make([]M, 0, len(authorizedIDs))
+			result := make([]M, 0, len(authorizedIDs))
 			for _, dbItem := range dbItems {
 				if authorizedSet[r.idExtractor(dbItem)] {
-					authorizedDB = append(authorizedDB, dbItem)
+					result = append(result, dbItem)
 				}
 			}
-
-			return authorizedDB, nil
-		}
-
-		maxIterations = quotaFillMaxIterationsWithAuth
-	} else {
-		dbAuthFilter = func(ctx context.Context, items []M) ([]M, error) {
-			return items, nil
+			return result, nil
 		}
 	}
 
@@ -116,7 +112,7 @@ func (r *GenericRepository[D, F, M, S]) paginateWithAuth(
 		quotafill.WithTimeout(quotaFillTimeout),
 	)
 
-	result, err := paginator.Paginate(ctx, page)
+	result, err := paginator.Paginate(ctx, page, paging.WithMaxSize(100), paging.WithDefaultSize(25))
 	if err != nil {
 		return nil, err
 	}
@@ -124,12 +120,11 @@ func (r *GenericRepository[D, F, M, S]) paginateWithAuth(
 	return paging.BuildConnection(
 		result.Nodes,
 		*result.PageInfo,
-		func(i int, item M) string {
-			cursor, _ := encoder.Encode(item)
-			if cursor == nil {
-				return ""
+		func(_ int, item M) string {
+			if cursor, _ := encoder.Encode(item); cursor != nil {
+				return *cursor
 			}
-			return *cursor
+			return ""
 		},
 		r.toDomain,
 	)
