@@ -116,11 +116,107 @@ if err := must.BeUUID(id); err != nil {
 }
 ```
 
+### `repository`
+
+Core repository pattern abstractions for building type-safe data access layers. Provides composable interfaces following the Interface Segregation Principle (ISP).
+
+**Repository Interfaces:**
+- `GetRepository[T]` - Read-only access by ID
+- `FilterableGetRepository[T, F]` - Read with filtering and pagination
+- `CreateRepository[T]` - Create operations
+- `UpdateRepository[T]` - Update operations
+- `DeleteRepository[T]` - Delete operations with soft/hard delete support
+- `Repository[T]` - Full CRUD interface (composes all above)
+
+**Delete Options:**
+- `DeleteOption` - Functional options for delete operations
+- `WithHardDelete(bool)` - Configure hard vs soft delete
+- `ApplyDeleteOpts(...DeleteOption)` - Apply delete configuration
+
+**Usage:**
+
+```go
+import "github.com/nrfta/toolkit-go/repository"
+
+// Define domain repository interface
+type UserRepository interface {
+    repository.Repository[*User]
+    repository.FilterableGetRepository[*User, UserFilter]
+}
+
+// Use in application code
+user, err := repo.Get(ctx, "user-123")
+users, err := repo.GetAll(ctx, UserFilter{Active: true})
+err := repo.Delete(ctx, user, repository.WithHardDelete(true))
+```
+
+These interfaces are technology-agnostic and can be implemented using any data access technology. See `sqlboiler` package for a concrete SQLBoiler-based implementation.
+
 ### `sqlboiler`
 
-Utilities for converting `comparators` to [SQLBoiler](https://github.com/volatiletech/sqlboiler) query modifiers (`qm.QueryMod`). Use these helpers to bridge GraphQL filters and database queries.
+SQLBoiler-specific implementations and utilities for building type-safe data access layers. Provides a generic repository implementation and query modifier helpers.
 
-**Comparator Converters:**
+#### Generic Repository
+
+`GenericRepository[D, F, M, S]` - A complete SQLBoiler-based implementation of the repository pattern with built-in filtering, pagination, and authorization support.
+
+**Features:**
+- Type-safe CRUD operations with domain ↔ model conversion
+- Automatic filter-to-query conversion using comparators
+- Cursor-based pagination with quota-fill algorithm
+- Optional authorization filtering for multi-tenant applications
+- Soft/hard delete support
+
+**Example:**
+
+```go
+import (
+    "github.com/nrfta/toolkit-go/repository"
+    "github.com/nrfta/toolkit-go/sqlboiler"
+)
+
+// Define pagination schema
+var userSchema = cursor.NewSchema[*models.User]().
+    Field("created_at", "c", func(u *models.User) any { return u.CreatedAt }).
+    FixedField("id", cursor.DESC, "i", func(u *models.User) any { return u.ID })
+
+// Create repository
+type UserRepository struct {
+    *sqlboiler.GenericRepository[
+        *user.User,           // Domain type
+        user.Filterable,      // Filter interface
+        *models.User,         // SQLBoiler model
+        models.UserSlice,     // Model slice type
+    ]
+}
+
+func NewUserRepository(exec boil.ContextExecutor) *UserRepository {
+    return &UserRepository{
+        GenericRepository: sqlboiler.NewGenericRepository[user.Filterable](
+            exec,
+            fromDomain,        // func(*user.User) (*models.User, error)
+            toDomain,          // func(*models.User) (*user.User, error)
+            convertFilter,     // func(any) (sqlboiler.QueryModder, error)
+            models.Users,      // Query function
+            userSchema,        // Pagination schema
+            func(u *models.User) string { return u.ID }, // ID extractor
+            func(ctx context.Context, u *models.User, hard bool) (int64, error) {
+                return u.Delete(ctx, exec)
+            },
+            user.ErrNotFound,
+        ),
+    }
+}
+
+// Use the repository
+users, err := repo.GetAll(ctx, user.Filter{Active: true})
+connection, err := repo.GetAllPaginated(ctx, pageArgs, filters...)
+```
+
+#### Comparator Converters
+
+Convert `comparators` to SQLBoiler query modifiers for building WHERE clauses:
+
 - `ModsForIDComparator()` - Convert ID comparators to WHERE clauses
 - `ModsForStringComparator()` - Convert string comparators with ILIKE support
 - `ModsForEnumComparator[T]()` - Generic enum comparator converter

@@ -11,10 +11,14 @@ type QueryModder interface {
 	Mods() ([]qm.QueryMod, error)
 }
 
-type modderConverter func(any) (QueryModder, error)
+// ModderConverter is a function that converts a filter to a QueryModder
+type ModderConverter func(any) (QueryModder, error)
 
-// Mods converts a slice of filters to a slice of QueryMods using the provided modderConverter function
-func Mods[T any](filters []T, converter modderConverter) ([]qm.QueryMod, error) {
+// For backward compatibility
+type modderConverter = ModderConverter
+
+// Mods converts a slice of filters to a slice of QueryMods using the provided ModderConverter function
+func Mods[T any](filters []T, converter ModderConverter) ([]qm.QueryMod, error) {
 	var mods []qm.QueryMod
 	for _, filter := range filters {
 		f, err := converter(filter)
