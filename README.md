@@ -116,6 +116,69 @@ if err := must.BeUUID(id); err != nil {
 }
 ```
 
+### `sqlboiler`
+
+Utilities for converting `comparators` to [SQLBoiler](https://github.com/volatiletech/sqlboiler) query modifiers (`qm.QueryMod`). Use these helpers to bridge GraphQL filters and database queries.
+
+**Comparator Converters:**
+- `ModsForIDComparator()` - Convert ID comparators to WHERE clauses
+- `ModsForStringComparator()` - Convert string comparators with ILIKE support
+- `ModsForEnumComparator[T]()` - Generic enum comparator converter
+- `ModsForSimpleStringComparator()` - Basic string equality/in filters
+- `ModsForBooleanComparator()` - Convert boolean comparators (Eq, Neq)
+- `ModsForNullableIDComparator()` - Convert nullable ID comparators with NULL constraint support
+- `ModsForNullableStringComparator()` - Convert nullable string comparators with NULL constraint and ILIKE support
+
+**Generic Helpers:**
+- `Mods[T]()` - Convert filter slices to QueryMods using a converter function
+- `QueryModder` - Interface for types that produce QueryMods
+- `WhereInSet[T]()` - Convert typed slices to `[]any` for SQLBoiler IN clauses
+
+**Example:**
+
+```go
+import (
+    "github.com/nrfta/toolkit-go/comparators"
+    "github.com/nrfta/toolkit-go/sqlboiler"
+)
+
+// Apply ID filter
+idFilter := comparators.ID{}.IN("id1", "id2")
+mods := sqlboiler.ModsForIDComparator("users", "id", idFilter)
+
+// Query with mods
+users, err := models.Users(mods...).All(ctx, db)
+```
+
+Use the `Mods()` function with a custom converter to handle complex filter types:
+
+```go
+type UserFilter struct {
+    ID   *comparators.ID
+    Name *comparators.String
+}
+
+// Implement QueryModder for your filter
+type userFilterModder struct {
+    filter UserFilter
+}
+
+func (m userFilterModder) Mods() ([]qm.QueryMod, error) {
+    var mods []qm.QueryMod
+    mods = append(mods, sqlboiler.ModsForIDComparator("users", "id", m.filter.ID)...)
+    mods = append(mods, sqlboiler.ModsForStringComparator("users", "name", m.filter.Name)...)
+    return mods, nil
+}
+
+func convertUserFilter(f any) (sqlboiler.QueryModder, error) {
+    filter := f.(UserFilter)
+    return userFilterModder{filter: filter}, nil
+}
+
+// Convert multiple filters
+mods, err := sqlboiler.Mods(filters, convertUserFilter)
+```
+
 ## Contributing
 
 - Format the code before committing:

@@ -2,14 +2,14 @@ package comparators
 
 // String provides comparators for string values with additional pattern matching capabilities.
 type String struct {
-	Eq          *string  `json:"eq,omitempty"`
-	Neq         *string  `json:"neq,omitempty"`
-	In          []string `json:"in,omitempty"`
-	Nin         []string `json:"nin,omitempty"`
+	Eq  *string  `json:"eq,omitempty"`
+	Neq *string  `json:"neq,omitempty"`
+	In  []string `json:"in,omitempty"`
+	Nin []string `json:"nin,omitempty"`
 	// Contains performs a case-insensitive substring match
-	Contains    *string  `json:"contains,omitempty"`
+	Contains *string `json:"contains,omitempty"`
 	// NotContains performs a case-insensitive substring exclusion match
-	NotContains *string  `json:"notContains,omitempty"`
+	NotContains *string `json:"notContains,omitempty"`
 }
 
 func (c *String) EQ(val string) *String {
