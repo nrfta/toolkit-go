@@ -41,6 +41,7 @@ type FilterableGetRepository[T any, F any] interface {
 	GetOne(ctx context.Context, filters ...F) (T, error)
 	GetAll(ctx context.Context, filters ...F) ([]T, error)
 	GetAllPaginated(ctx context.Context, page *paging.PageArgs, filters ...F) (*paging.Connection[T], error)
+	GetAllPaginatedWithAuth(ctx context.Context, page *paging.PageArgs, filterAuthorizedIDs func(context.Context, []string) ([]string, error), filters ...F) (*paging.Connection[T], error)
 }
 
 // CreateRepository provides create access
