@@ -82,6 +82,222 @@ var _ = Describe("BatchedLoaderFn", func() {
 	})
 })
 
+var _ = Describe("BatchedLoaderFnWithAuth", func() {
+	var (
+		ctx             = context.Background()
+		notFoundErr     = errors.New("not found")
+		unauthorizedErr = errors.New("access denied")
+		data            = map[string]*foo{
+			"1": {ID: "1", Alias: "a"},
+			"2": {ID: "2", Alias: "b"},
+			"3": {ID: "3", Alias: "c"},
+		}
+	)
+
+	getRecordsFn := func(_ context.Context, keys []string) ([]*foo, error) {
+		var out []*foo
+		seen := map[string]struct{}{}
+		for _, k := range keys {
+			seen[k] = struct{}{}
+		}
+		for _, f := range data {
+			if _, ok := seen[f.ID]; ok {
+				out = append(out, f)
+			}
+		}
+		return out, nil
+	}
+
+	getKeysFn := func(f *foo) []string {
+		return []string{f.ID}
+	}
+
+	Context("with full authorization", func() {
+		filterAuthorizedKeysFn := func(_ context.Context, keys []string) ([]string, error) {
+			// All keys are authorized
+			return keys, nil
+		}
+
+		It("returns all authorized records", func() {
+			loader := dataloader.BatchedLoaderFnWithAuth(
+				getRecordsFn,
+				getKeysFn,
+				filterAuthorizedKeysFn,
+				notFoundErr,
+				unauthorizedErr,
+			)
+			keys := []string{"1", "2"}
+			results := loader(ctx, keys)
+
+			Expect(results).To(HaveLen(2))
+			Expect(results[0].Data.ID).To(Equal("1"))
+			Expect(results[0].Error).To(BeNil())
+			Expect(results[1].Data.ID).To(Equal("2"))
+			Expect(results[1].Error).To(BeNil())
+		})
+	})
+
+	Context("with partial authorization", func() {
+		filterAuthorizedKeysFn := func(_ context.Context, keys []string) ([]string, error) {
+			// Only "1" and "3" are authorized
+			authorized := []string{}
+			for _, k := range keys {
+				if k == "1" || k == "3" {
+					authorized = append(authorized, k)
+				}
+			}
+			return authorized, nil
+		}
+
+		It("returns authorized records and unauthorized errors", func() {
+			loader := dataloader.BatchedLoaderFnWithAuth(
+				getRecordsFn,
+				getKeysFn,
+				filterAuthorizedKeysFn,
+				notFoundErr,
+				unauthorizedErr,
+			)
+			keys := []string{"1", "2", "3"}
+			results := loader(ctx, keys)
+
+			Expect(results).To(HaveLen(3))
+			Expect(results[0].Data.ID).To(Equal("1"))
+			Expect(results[0].Error).To(BeNil())
+			Expect(results[1].Data).To(BeNil())
+			Expect(results[1].Error).To(MatchError(unauthorizedErr))
+			Expect(results[2].Data.ID).To(Equal("3"))
+			Expect(results[2].Error).To(BeNil())
+		})
+	})
+
+	Context("with not found records", func() {
+		filterAuthorizedKeysFn := func(_ context.Context, keys []string) ([]string, error) {
+			return keys, nil
+		}
+
+		It("returns not found error for missing records", func() {
+			loader := dataloader.BatchedLoaderFnWithAuth(
+				getRecordsFn,
+				getKeysFn,
+				filterAuthorizedKeysFn,
+				notFoundErr,
+				unauthorizedErr,
+			)
+			keys := []string{"1", "999"}
+			results := loader(ctx, keys)
+
+			Expect(results).To(HaveLen(2))
+			Expect(results[0].Data.ID).To(Equal("1"))
+			Expect(results[0].Error).To(BeNil())
+			Expect(results[1].Data).To(BeNil())
+			Expect(results[1].Error).To(MatchError(notFoundErr))
+		})
+	})
+
+	Context("with mixed scenarios", func() {
+		filterAuthorizedKeysFn := func(_ context.Context, keys []string) ([]string, error) {
+			// Only "1" is authorized
+			authorized := []string{}
+			for _, k := range keys {
+				if k == "1" {
+					authorized = append(authorized, k)
+				}
+			}
+			return authorized, nil
+		}
+
+		It("distinguishes between not found and unauthorized", func() {
+			loader := dataloader.BatchedLoaderFnWithAuth(
+				getRecordsFn,
+				getKeysFn,
+				filterAuthorizedKeysFn,
+				notFoundErr,
+				unauthorizedErr,
+			)
+			// "1" = authorized, "2" = exists but unauthorized, "999" = not found
+			keys := []string{"1", "2", "999"}
+			results := loader(ctx, keys)
+
+			Expect(results).To(HaveLen(3))
+			Expect(results[0].Data.ID).To(Equal("1"))
+			Expect(results[0].Error).To(BeNil())
+			Expect(results[1].Data).To(BeNil())
+			Expect(results[1].Error).To(MatchError(unauthorizedErr))
+			Expect(results[2].Data).To(BeNil())
+			Expect(results[2].Error).To(MatchError(notFoundErr))
+		})
+	})
+
+	Context("error handling", func() {
+		filterAuthorizedKeysFn := func(_ context.Context, keys []string) ([]string, error) {
+			return keys, nil
+		}
+
+		It("propagates data fetching errors", func() {
+			fetchErr := errors.New("database connection failed")
+			loader := dataloader.BatchedLoaderFnWithAuth(
+				func(context.Context, []string) ([]*foo, error) {
+					return nil, fetchErr
+				},
+				getKeysFn,
+				filterAuthorizedKeysFn,
+				notFoundErr,
+				unauthorizedErr,
+			)
+			keys := []string{"1", "2"}
+			results := loader(ctx, keys)
+
+			Expect(results).To(HaveLen(2))
+			for _, r := range results {
+				Expect(r.Error).To(MatchError(fetchErr))
+			}
+		})
+
+		It("propagates authorization check errors", func() {
+			authErr := errors.New("authorization service unavailable")
+			loader := dataloader.BatchedLoaderFnWithAuth(
+				getRecordsFn,
+				getKeysFn,
+				func(context.Context, []string) ([]string, error) {
+					return nil, authErr
+				},
+				notFoundErr,
+				unauthorizedErr,
+			)
+			keys := []string{"1", "2"}
+			results := loader(ctx, keys)
+
+			Expect(results).To(HaveLen(2))
+			for _, r := range results {
+				Expect(r.Error).To(MatchError(authErr))
+			}
+		})
+	})
+
+	Context("with no authorization needed", func() {
+		filterAuthorizedKeysFn := func(_ context.Context, keys []string) ([]string, error) {
+			// No keys are authorized
+			return []string{}, nil
+		}
+
+		It("returns unauthorized for all existing records", func() {
+			loader := dataloader.BatchedLoaderFnWithAuth(
+				getRecordsFn,
+				getKeysFn,
+				filterAuthorizedKeysFn,
+				notFoundErr,
+				unauthorizedErr,
+			)
+			keys := []string{"1", "2"}
+			results := loader(ctx, keys)
+
+			Expect(results).To(HaveLen(2))
+			Expect(results[0].Error).To(MatchError(unauthorizedErr))
+			Expect(results[1].Error).To(MatchError(unauthorizedErr))
+		})
+	})
+})
+
 var _ = Describe("BatchedManyLoaderFn", func() {
 	var (
 		ctx    = context.Background()
