@@ -106,6 +106,72 @@ func usersHandler(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
+### `http/token_exchange`
+
+A client for managing OAuth2 token exchange with automatic token refresh and caching. Handles machine-to-machine authentication using public/secret token pairs with automatic access token refresh via refresh tokens.
+
+**Features:**
+- Automatic token expiration tracking and refresh
+- Thread-safe token caching with mutex protection
+- Support for both API token and refresh token grant types
+- Configurable auth endpoint URL
+- Compatible with APM-wrapped HTTP clients for automatic trace propagation
+
+**Example Usage:**
+
+```go
+import (
+    "net/http"
+    "github.com/nrfta/toolkit-go/http/token_exchange"
+)
+
+// Create a token exchange client
+tokenGetter := token_exchange.NewClient(
+    http.DefaultClient,
+    "https://app.underline.com",  // Base API URL
+    "your-public-token",           // Public token
+    "your-secret-token",           // Secret token
+)
+
+// Get an access token (automatically handles refresh)
+accessToken, err := tokenGetter.GetAccessToken()
+if err != nil {
+    // handle error
+}
+
+// Use with context
+accessToken, err := tokenGetter.GetAccessTokenCtx(ctx)
+```
+
+**Integration with HTTP Clients:**
+
+```go
+import (
+    "github.com/nrfta/toolkit-go/http/token_exchange"
+    "go.elastic.co/apm/module/apmhttp/v2"
+)
+
+// Create token exchange client with APM-wrapped HTTP client
+tokenGetter := token_exchange.NewClient(
+    apmhttp.WrapClient(http.DefaultClient),
+    config.Config.PlatformAPI.URL,
+    config.Config.PlatformAPI.PublicToken,
+    config.Config.PlatformAPI.SecretToken,
+)
+
+// Use with authorization interceptors or middleware
+client := NewAPIClient(
+    WithHTTPClient(apmhttp.WrapClient(http.DefaultClient)),
+    WithAuthorizationHeader(tokenGetter),
+)
+```
+
+The client automatically:
+- Uses cached access tokens if they're valid for at least 30 more seconds
+- Refreshes access tokens using refresh tokens when access tokens expire
+- Falls back to API token grant when refresh tokens expire
+- Works with APM-wrapped HTTP clients for distributed tracing
+
 ### `must`
 
 Small validation helpers that return `github.com/neighborly/go-errors` errors. Examples include `BeUUID`, `BeXID`, `BeNonZero`, and range checks such as `BeBetween`.
