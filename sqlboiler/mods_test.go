@@ -224,6 +224,185 @@ var _ = Describe("SQLBoiler Query Mod Converters", func() {
 		})
 	})
 
+	Describe("ModsForEnumComparatorWithConverter", func() {
+		type TestEnum string
+
+		// Converter that converts camelCase to snake_case for testing
+		converter := func(val TestEnum) string {
+			// Simple implementation for testing: convert "CamelCase" to "camel_case"
+			result := ""
+			for i, r := range string(val) {
+				if i > 0 && r >= 'A' && r <= 'Z' {
+					result += "_"
+				}
+				result += string(r)
+			}
+			return result
+		}
+
+		Context("when comparator is nil", func() {
+			It("should return empty query mods", func() {
+				mods := sqlboiler.ModsForEnumComparatorWithConverter[TestEnum](
+					tableName, columnName, nil, converter,
+				)
+				Expect(mods).To(BeEmpty())
+			})
+		})
+
+		Context("with enum values and converter", func() {
+			It("should handle Eq filter with conversion", func() {
+				val := TestEnum("ActiveStatus")
+				comparator := &comparators.Enum[TestEnum]{Eq: &val}
+				mods := sqlboiler.ModsForEnumComparatorWithConverter(
+					tableName, columnName, comparator, converter,
+				)
+
+				Expect(mods).To(HaveLen(1))
+			})
+
+			It("should handle In filter with conversion", func() {
+				comparator := &comparators.Enum[TestEnum]{
+					In: []TestEnum{"ActiveStatus", "PendingStatus"},
+				}
+				mods := sqlboiler.ModsForEnumComparatorWithConverter(
+					tableName, columnName, comparator, converter,
+				)
+
+				Expect(mods).To(HaveLen(1))
+			})
+
+			It("should handle Neq filter with conversion", func() {
+				val := TestEnum("InactiveStatus")
+				comparator := &comparators.Enum[TestEnum]{Neq: &val}
+				mods := sqlboiler.ModsForEnumComparatorWithConverter(
+					tableName, columnName, comparator, converter,
+				)
+
+				Expect(mods).To(HaveLen(1))
+			})
+
+			It("should handle Nin filter with conversion", func() {
+				comparator := &comparators.Enum[TestEnum]{
+					Nin: []TestEnum{"InactiveStatus", "DeletedStatus"},
+				}
+				mods := sqlboiler.ModsForEnumComparatorWithConverter(
+					tableName, columnName, comparator, converter,
+				)
+
+				Expect(mods).To(HaveLen(1))
+			})
+
+			It("should handle combined filters with conversion", func() {
+				val := TestEnum("ActiveStatus")
+				comparator := &comparators.Enum[TestEnum]{
+					Eq:  &val,
+					In:  []TestEnum{"ActiveStatus", "PendingStatus"},
+					Nin: []TestEnum{"DeletedStatus"},
+				}
+				mods := sqlboiler.ModsForEnumComparatorWithConverter(
+					tableName, columnName, comparator, converter,
+				)
+
+				Expect(mods).To(HaveLen(3))
+			})
+
+			It("should not generate mods for nil or empty values", func() {
+				comparator := &comparators.Enum[TestEnum]{
+					Eq:  nil,
+					Neq: nil,
+					In:  []TestEnum{},
+					Nin: []TestEnum{},
+				}
+				mods := sqlboiler.ModsForEnumComparatorWithConverter(
+					tableName, columnName, comparator, converter,
+				)
+
+				Expect(mods).To(BeEmpty())
+			})
+		})
+
+		Context("converter function behavior", func() {
+			It("should apply converter to Eq value", func() {
+				convertedValues := []string{}
+				trackingConverter := func(val TestEnum) string {
+					converted := string(val) + "_converted"
+					convertedValues = append(convertedValues, converted)
+					return converted
+				}
+
+				val := TestEnum("test")
+				comparator := &comparators.Enum[TestEnum]{Eq: &val}
+				mods := sqlboiler.ModsForEnumComparatorWithConverter(
+					tableName, columnName, comparator, trackingConverter,
+				)
+
+				Expect(mods).To(HaveLen(1))
+				Expect(convertedValues).To(ContainElement("test_converted"))
+			})
+
+			It("should apply converter to all In values", func() {
+				convertedValues := []string{}
+				trackingConverter := func(val TestEnum) string {
+					converted := string(val) + "_converted"
+					convertedValues = append(convertedValues, converted)
+					return converted
+				}
+
+				comparator := &comparators.Enum[TestEnum]{
+					In: []TestEnum{"val1", "val2", "val3"},
+				}
+				mods := sqlboiler.ModsForEnumComparatorWithConverter(
+					tableName, columnName, comparator, trackingConverter,
+				)
+
+				Expect(mods).To(HaveLen(1))
+				Expect(convertedValues).To(HaveLen(3))
+				Expect(convertedValues).To(ContainElement("val1_converted"))
+				Expect(convertedValues).To(ContainElement("val2_converted"))
+				Expect(convertedValues).To(ContainElement("val3_converted"))
+			})
+
+			It("should apply converter to Neq value", func() {
+				convertedValues := []string{}
+				trackingConverter := func(val TestEnum) string {
+					converted := string(val) + "_converted"
+					convertedValues = append(convertedValues, converted)
+					return converted
+				}
+
+				val := TestEnum("exclude")
+				comparator := &comparators.Enum[TestEnum]{Neq: &val}
+				mods := sqlboiler.ModsForEnumComparatorWithConverter(
+					tableName, columnName, comparator, trackingConverter,
+				)
+
+				Expect(mods).To(HaveLen(1))
+				Expect(convertedValues).To(ContainElement("exclude_converted"))
+			})
+
+			It("should apply converter to all Nin values", func() {
+				convertedValues := []string{}
+				trackingConverter := func(val TestEnum) string {
+					converted := string(val) + "_converted"
+					convertedValues = append(convertedValues, converted)
+					return converted
+				}
+
+				comparator := &comparators.Enum[TestEnum]{
+					Nin: []TestEnum{"exclude1", "exclude2"},
+				}
+				mods := sqlboiler.ModsForEnumComparatorWithConverter(
+					tableName, columnName, comparator, trackingConverter,
+				)
+
+				Expect(mods).To(HaveLen(1))
+				Expect(convertedValues).To(HaveLen(2))
+				Expect(convertedValues).To(ContainElement("exclude1_converted"))
+				Expect(convertedValues).To(ContainElement("exclude2_converted"))
+			})
+		})
+	})
+
 	Describe("ModsForSimpleStringComparator", func() {
 		Context("when comparator is nil", func() {
 			It("should return empty query mods", func() {
