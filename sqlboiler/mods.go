@@ -172,6 +172,67 @@ func ModsForEnumComparator[T ~string](
 	return queryMods
 }
 
+func ModsForEnumComparatorWithConverter[T ~string](
+	tableName,
+	columnName string,
+	comparator *comparators.Enum[T],
+	converter func(T) string,
+) []qm.QueryMod {
+	if comparator == nil {
+		return nil
+	}
+
+	var queryMods []qm.QueryMod
+	columnName = formatColumnName(tableName, columnName)
+
+	if comparator.Eq != nil {
+		queryMods = append(queryMods, qm.Where(
+			fmt.Sprintf("%s = ?", columnName),
+			converter(*comparator.Eq),
+		))
+	}
+
+	if len(comparator.In) > 0 {
+		convertedIn := make([]string, len(comparator.In))
+		for i, val := range comparator.In {
+			convertedIn[i] = converter(val)
+		}
+		queryMods = append(
+			queryMods,
+			qm.WhereIn(
+				fmt.Sprintf("%s IN ?", columnName),
+				WhereInSet(convertedIn)...,
+			),
+		)
+	}
+
+	if comparator.Neq != nil {
+		queryMods = append(
+			queryMods,
+			qm.Where(
+				fmt.Sprintf("%s != ?", columnName),
+				converter(*comparator.Neq),
+			),
+		)
+	}
+
+	if len(comparator.Nin) > 0 {
+		convertedNin := make([]string, len(comparator.Nin))
+		for i, val := range comparator.Nin {
+			convertedNin[i] = converter(val)
+		}
+		queryMods = append(
+			queryMods,
+			qm.WhereNotIn(
+				fmt.Sprintf("%s NOT IN ?", columnName),
+				WhereInSet(convertedNin)...,
+			),
+		)
+	}
+
+	return queryMods
+}
+
 func ModsForSimpleStringComparator(
 	tableName,
 	columnName string,
