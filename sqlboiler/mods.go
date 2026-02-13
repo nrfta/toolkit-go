@@ -671,3 +671,185 @@ func ModsForNullableDateComparator(
 		comparator.Null, // pass null constraint
 	)
 }
+
+// ModsForIDComparatorWithOr generates query mods for ID comparators with OR logic between two columns.
+// This is useful when a value can match either of two ID columns (e.g., key can be either xid OR slug).
+func ModsForIDComparatorWithOr(
+	tableName,
+	idColumnName,
+	secondIDColumnName string,
+	comparator *comparators.ID,
+) []qm.QueryMod {
+	if comparator == nil {
+		return nil
+	}
+
+	var queryMods []qm.QueryMod
+	idColumnName = formatColumnName(tableName, idColumnName)
+	secondIDColumnName = formatColumnName(tableName, secondIDColumnName)
+
+	// Add equality filter
+	if comparator.Eq != nil {
+		queryMods = append(queryMods, qm.Expr(
+			qm.Where(fmt.Sprintf("%s = ?", idColumnName), comparator.Eq),
+			qm.Or(fmt.Sprintf("%s = ?", secondIDColumnName), comparator.Eq),
+		))
+	}
+
+	// Add IN filter
+	if len(comparator.In) > 0 {
+		queryMods = append(queryMods, qm.Expr(
+			qm.WhereIn(fmt.Sprintf("%s IN ?", idColumnName), WhereInSet(comparator.In)...),
+			qm.OrIn(fmt.Sprintf("%s IN ?", secondIDColumnName), WhereInSet(comparator.In)...),
+		))
+	}
+
+	// Add inequality filter
+	if comparator.Neq != nil {
+		queryMods = append(queryMods, qm.Expr(
+			qm.Where(fmt.Sprintf("%s != ?", idColumnName), comparator.Neq),
+			qm.Or(fmt.Sprintf("%s != ?", secondIDColumnName), comparator.Neq),
+		))
+	}
+
+	// Add NOT IN filter
+	if len(comparator.Nin) > 0 {
+		queryMods = append(queryMods, qm.Expr(
+			qm.WhereNotIn(fmt.Sprintf("%s NOT IN ?", idColumnName), WhereInSet(comparator.Nin)...),
+			qm.OrNotIn(fmt.Sprintf("%s NOT IN ?", secondIDColumnName), WhereInSet(comparator.Nin)...),
+		))
+	}
+
+	return queryMods
+}
+
+// ModsForIDArrayComparator generates query mods for ID comparators on PostgreSQL array columns.
+// The arrayType parameter specifies the PostgreSQL array element type for casting (e.g., "text", "uuid").
+func ModsForIDArrayComparator(
+	tableName,
+	columnName, arrayType string,
+	comparator *comparators.ID,
+) []qm.QueryMod {
+	if comparator == nil {
+		return nil
+	}
+
+	var queryMods []qm.QueryMod
+	columnName = formatColumnName(tableName, columnName)
+
+	// Add equality filter (array contains single element)
+	if comparator.Eq != nil {
+		queryMods = append(queryMods, qm.Where(
+			fmt.Sprintf("?::%s = ANY(%s)", arrayType, columnName),
+			comparator.Eq,
+		))
+	}
+
+	// Add IN filter (array contains any of the elements in the list)
+	if len(comparator.In) > 0 {
+		queryMods = append(
+			queryMods,
+			qm.Where(
+				fmt.Sprintf("ARRAY[%s]::%s[] && %s", placeholders(len(comparator.In)), arrayType, columnName),
+				WhereInSet(comparator.In)...,
+			),
+		)
+	}
+
+	// Add inequality filter (array does not contain single element)
+	if comparator.Neq != nil {
+		queryMods = append(
+			queryMods,
+			qm.Where(
+				fmt.Sprintf("?::%s != ALL(%s)", arrayType, columnName),
+				comparator.Neq,
+			),
+		)
+	}
+
+	// Add NOT IN filter (array does not contain any of the elements in the list)
+	if len(comparator.Nin) > 0 {
+		queryMods = append(
+			queryMods,
+			qm.WhereNotIn(
+				fmt.Sprintf("ARRAY[%s]::%s[] && %s", placeholders(len(comparator.Nin)), arrayType, columnName),
+				WhereInSet(comparator.Nin)...,
+			),
+		)
+	}
+
+	return queryMods
+}
+
+// ModsForEnumArrayComparator generates query mods for Enum comparators on PostgreSQL array columns.
+// The arrayType parameter specifies the PostgreSQL array element type for casting (e.g., "text", "status").
+func ModsForEnumArrayComparator[T ~string](
+	tableName,
+	columnName, arrayType string,
+	comparator *comparators.Enum[T],
+) []qm.QueryMod {
+	if comparator == nil {
+		return nil
+	}
+
+	var queryMods []qm.QueryMod
+	columnName = formatColumnName(tableName, columnName)
+
+	// Add equality filter (array contains single element)
+	if comparator.Eq != nil {
+		queryMods = append(queryMods, qm.Where(
+			fmt.Sprintf("?::%s = ANY(%s)", arrayType, columnName),
+			comparator.Eq,
+		))
+	}
+
+	// Add IN filter (array contains any of the elements in the list)
+	if len(comparator.In) > 0 {
+		queryMods = append(
+			queryMods,
+			qm.Where(
+				fmt.Sprintf("ARRAY[%s]::%s[] && %s", placeholders(len(comparator.In)), arrayType, columnName),
+				WhereInSet(comparator.In)...,
+			),
+		)
+	}
+
+	// Add inequality filter (array does not contain single element)
+	if comparator.Neq != nil {
+		queryMods = append(
+			queryMods,
+			qm.Where(
+				fmt.Sprintf("?::%s != ALL(%s)", arrayType, columnName),
+				comparator.Neq,
+			),
+		)
+	}
+
+	// Add NOT IN filter (array does not contain any of the elements in the list)
+	if len(comparator.Nin) > 0 {
+		queryMods = append(
+			queryMods,
+			qm.WhereNotIn(
+				fmt.Sprintf("ARRAY[%s]::%s[] && %s", placeholders(len(comparator.Nin)), arrayType, columnName),
+				WhereInSet(comparator.Nin)...,
+			),
+		)
+	}
+
+	return queryMods
+}
+
+// placeholders returns a string of placeholders separated by commas for use in SQL queries.
+func placeholders(n int) string {
+	if n <= 0 {
+		return ""
+	}
+	result := ""
+	for i := 0; i < n; i++ {
+		if i > 0 {
+			result += ", "
+		}
+		result += "?"
+	}
+	return result
+}
