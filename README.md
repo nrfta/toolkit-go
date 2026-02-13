@@ -14,11 +14,20 @@ go get github.com/nrfta/toolkit-go
 
 Add the module to your `go.mod` and import the packages you need.
 
+**Dependencies:**
+- [`github.com/sosodev/duration`](https://github.com/sosodev/duration) - ISO 8601 duration parsing (used by Date/NullableDate comparators)
+
 ## Packages
 
 ### `comparators`
 
-Helpers for building GraphQL filter input types. The package includes structs such as `ID`, `Boolean`, `Enum[T]` and more. Each type exposes chaining helpers (e.g. `EQ`, `NEQ`, `IN`, `NIN`) and an `IsSet` method to determine if any fields have been populated.
+Helpers for building GraphQL filter input types. The package includes structs such as `ID`, `Boolean`, `String`, `Date`, `NullableDate`, `Enum[T]` and more. Each type exposes chaining helpers (e.g. `EQ`, `NEQ`, `IN`, `NIN`) and an `IsSet` method to determine if any fields have been populated.
+
+**Available Comparators:**
+- **Basic Types**: `ID`, `Boolean`, `String`, `SimpleString`
+- **Date/Time**: `Date`, `NullableDate` (with ISO 8601 duration support)
+- **Nullable Types**: `NullableID`, `NullableString`, `NullableDate`
+- **Generic**: `Enum[T]` for type-safe enum comparisons
 
 To use them with [gqlgen](https://github.com/99designs/gqlgen), copy the definitions from [`comparators/schema.graphqls`](comparators/schema.graphqls) into your schema:
 
@@ -30,9 +39,135 @@ input IDComparator @goModel(model: "github.com/nrfta/toolkit-go/comparators.ID")
   in: [ID!]
   nin: [ID!]
 }
+
+input DateComparator @goModel(model: "github.com/nrfta/toolkit-go/comparators.Date") {
+  eq: String
+  neq: String
+  in: [String!]
+  nin: [String!]
+  lt: String
+  lte: String
+  gt: String
+  gte: String
+}
 ```
 
-Now you can bind `IDComparator` (or any other comparator) directly in your resolver arguments.
+Now you can bind `IDComparator`, `DateComparator`, or any other comparator directly in your resolver arguments.
+
+#### Date Comparators with Duration Support
+
+The `Date` and `NullableDate` comparators support both absolute dates and relative durations:
+
+**Absolute Dates:**
+```go
+// RFC3339 format for timestamp columns
+filter := new(comparators.Date).
+    GTE("2024-01-01T00:00:00Z").
+    LT("2025-01-01T00:00:00Z")
+
+// Date-only format for date columns
+filter := new(comparators.Date).EQ("2025-01-01")
+```
+
+**Relative Durations (ISO 8601):**
+```go
+// Find records from the last month
+filter := new(comparators.Date).GTE("-P1M")
+
+// Find records due in the next 2 weeks
+filter := new(comparators.Date).LT("P2W")
+
+// Combine absolute and relative dates
+filter := new(comparators.Date).
+    GTE("-P6M").                      // 6 months ago
+    LT("2026-12-31T23:59:59Z")       // Absolute end date
+```
+
+**Time Helpers:**
+```go
+// Use time.Time directly with helper methods
+now := time.Now()
+startOfYear := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+
+filter := new(comparators.Date).
+    GTETime(startOfYear).
+    LTTime(now)
+```
+
+**Nullable Dates with NULL Constraint:**
+```go
+// Match dates >= 2024-01-01 OR NULL values
+filter := new(comparators.NullableDate).
+    GTE("2024-01-01T00:00:00Z").
+    NULL(true)
+
+// Match only NULL values
+filter := new(comparators.NullableDate).NULL(true)
+
+// Match only non-NULL values
+filter := new(comparators.NullableDate).NULL(false)
+```
+
+**Supported Duration Units:**
+- Years: `P1Y` (1 year from now), `-P1Y` (1 year ago)
+- Months: `P6M`, `-P3M`
+- Weeks: `P2W`, `-P1W`
+- Days: `P30D`, `-P7D`
+- Hours: `PT12H`, `-PT6H`
+- Complex: `P1Y2M3DT4H5M6S`
+
+### `duration`
+
+ISO 8601 duration parsing utilities for converting relative time expressions to absolute timestamps. Used internally by `Date` and `NullableDate` comparators to support relative date filtering.
+
+**Features:**
+- Parse ISO 8601 durations: `P1Y`, `P6M`, `P2W`, `P30D`, `PT12H`
+- Support negative durations: `-P1M`, `-P2W`
+- Convert durations to absolute dates relative to a reference time
+- Passthrough for absolute dates (RFC3339, date-only formats)
+
+**Functions:**
+- `ParseToAbsoluteTime(value, now)` - Parse duration to absolute time
+- `ParseOrPassthrough(value, now)` - Parse duration or pass through absolute dates
+- `IsDuration(value)` - Check if string is ISO 8601 duration format
+
+**Example:**
+```go
+import "github.com/nrfta/toolkit-go/duration"
+
+now := time.Now()
+
+// Parse relative duration
+result, isDuration, err := duration.ParseToAbsoluteTime("-P1M", now)
+// result = now minus 1 month
+
+// Passthrough absolute dates
+result, err := duration.ParseOrPassthrough("2025-01-01T00:00:00Z", now)
+// result = "2025-01-01T00:00:00Z" (unchanged)
+
+// Check if value is a duration
+if duration.IsDuration("P2W") {
+    // It's a duration
+}
+```
+
+**Supported Duration Components:**
+- `Y` - Years
+- `M` - Months (in date part)
+- `W` - Weeks
+- `D` - Days
+- `T` - Time separator (required before time components)
+- `H` - Hours (after T)
+- `M` - Minutes (after T)
+- `S` - Seconds (after T)
+
+**Examples:**
+- `P1Y` → 1 year from now
+- `P6M` → 6 months from now
+- `P2W` → 2 weeks (14 days) from now
+- `PT12H` → 12 hours from now
+- `-P1M` → 1 month ago
+- `P1Y2M3DT4H5M6S` → Complex duration with all components
 
 ### `dataloader`
 
@@ -283,11 +418,18 @@ connection, err := repo.GetAllPaginated(ctx, pageArgs, filters...)
 
 Convert `comparators` to SQLBoiler query modifiers for building WHERE clauses:
 
+**Basic Comparators:**
 - `ModsForIDComparator()` - Convert ID comparators to WHERE clauses
 - `ModsForStringComparator()` - Convert string comparators with ILIKE support
-- `ModsForEnumComparator[T]()` - Generic enum comparator converter
 - `ModsForSimpleStringComparator()` - Basic string equality/in filters
 - `ModsForBooleanComparator()` - Convert boolean comparators (Eq, Neq)
+- `ModsForEnumComparator[T]()` - Generic enum comparator converter
+
+**Date Comparators:**
+- `ModsForDateComparator()` - Convert date comparators with ISO 8601 duration support
+- `ModsForNullableDateComparator()` - Convert nullable date comparators with duration and NULL constraint support
+
+**Nullable Comparators:**
 - `ModsForNullableIDComparator()` - Convert nullable ID comparators with NULL constraint support
 - `ModsForNullableStringComparator()` - Convert nullable string comparators with NULL constraint and ILIKE support
 
@@ -296,7 +438,7 @@ Convert `comparators` to SQLBoiler query modifiers for building WHERE clauses:
 - `QueryModder` - Interface for types that produce QueryMods
 - `WhereInSet[T]()` - Convert typed slices to `[]any` for SQLBoiler IN clauses
 
-**Example:**
+**Examples:**
 
 ```go
 import (
@@ -310,6 +452,30 @@ mods := sqlboiler.ModsForIDComparator("users", "id", idFilter)
 
 // Query with mods
 users, err := models.Users(mods...).All(ctx, db)
+
+// Date filter with absolute dates
+dateFilter := new(comparators.Date).
+    GTE("2024-01-01T00:00:00Z").
+    LT("2025-01-01T00:00:00Z")
+mods = sqlboiler.ModsForDateComparator("events", "created_at", dateFilter)
+events, err := models.Events(mods...).All(ctx, db)
+
+// Date filter with relative durations
+dateFilter = new(comparators.Date).GTE("-P1M") // Last month
+mods = sqlboiler.ModsForDateComparator("events", "created_at", dateFilter)
+// Generates: WHERE events.created_at >= '2025-01-12T...' (calculated at query time)
+
+// Nullable date filter with NULL constraint
+nullableDateFilter := new(comparators.NullableDate).
+    GTE("2024-01-01T00:00:00Z").
+    NULL(true)
+mods = sqlboiler.ModsForNullableDateComparator("tasks", "completed_at", nullableDateFilter)
+// Generates: WHERE (tasks.completed_at >= '2024-01-01T00:00:00Z' OR tasks.completed_at IS NULL)
+
+// Nullable date filter - only NULL values
+nullableDateFilter = new(comparators.NullableDate).NULL(true)
+mods = sqlboiler.ModsForNullableDateComparator("tasks", "completed_at", nullableDateFilter)
+// Generates: WHERE tasks.completed_at IS NULL
 ```
 
 Use the `Mods()` function with a custom converter to handle complex filter types:
