@@ -171,3 +171,82 @@ input NullableStringComparator
   """
   null: Boolean
 }
+
+"""
+DateComparator is used to filter results based on date/datetime values.
+
+Supports two input formats:
+1. Absolute dates:
+   - DateTime (RFC3339): "2025-01-01T00:00:00Z" for timestamp columns
+   - Date-only: "2025-01-01" for date columns
+2. Relative durations (ISO 8601):
+   - Future: "P2W" (2 weeks from now), "P30D" (30 days)
+   - Past: "-P1M" (1 month ago), "-P2W" (2 weeks ago)
+
+Column type handling:
+- Date columns: Use date-only format or let database truncate datetime
+- Timestamp columns: Use RFC3339 format; date-only interpreted as midnight
+"""
+input DateComparator
+  @goModel(model: "github.com/nrfta/toolkit-go/comparators.Date") {
+  """
+  Checks if the date equals the provided value.
+  Accepts RFC3339, date-only, or ISO 8601 duration (e.g., "P2W", "-P1M").
+  """
+  eq: String
+
+  """
+  Checks if the date does not equal the provided value.
+  """
+  neq: String
+
+  """
+  Checks if the date is within the provided list of values.
+  """
+  in: [String!]
+
+  """
+  Checks if the date is not within the provided list of values.
+  """
+  nin: [String!]
+
+  """
+  Checks if the date is less than the provided value (before).
+  """
+  lt: String
+
+  """
+  Checks if the date is less than or equal to the provided value.
+  """
+  lte: String
+
+  """
+  Checks if the date is greater than the provided value (after).
+  """
+  gt: String
+
+  """
+  Checks if the date is greater than or equal to the provided value.
+  """
+  gte: String
+}
+
+"""
+NullableDateComparator extends DateComparator with null value filtering.
+"""
+input NullableDateComparator
+  @goModel(model: "github.com/nrfta/toolkit-go/comparators.NullableDate") {
+  eq: String
+  neq: String
+  in: [String!]
+  nin: [String!]
+  lt: String
+  lte: String
+  gt: String
+  gte: String
+
+  """
+  If true, matches null values. If false, matches only non-null values.
+  """
+  null: Boolean
+}

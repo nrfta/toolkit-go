@@ -997,4 +997,194 @@ var _ = Describe("SQLBoiler Query Mod Converters", func() {
 			})
 		})
 	})
+
+	Describe("ModsForDateComparator", func() {
+		Context("when comparator is nil", func() {
+			It("should return empty query mods", func() {
+				mods := sqlboiler.ModsForDateComparator(tableName, columnName, nil)
+				Expect(mods).To(BeEmpty())
+			})
+		})
+
+		Context("with absolute dates", func() {
+			It("should generate = clause for Eq with RFC3339", func() {
+				date := "2025-01-01T00:00:00Z"
+				comparator := &comparators.Date{Eq: &date}
+				mods := sqlboiler.ModsForDateComparator(tableName, columnName, comparator)
+
+				Expect(mods).To(HaveLen(1))
+			})
+
+			It("should generate != clause for Neq", func() {
+				date := "2025-01-01T00:00:00Z"
+				comparator := &comparators.Date{Neq: &date}
+				mods := sqlboiler.ModsForDateComparator(tableName, columnName, comparator)
+
+				Expect(mods).To(HaveLen(1))
+			})
+
+			It("should generate IN clause for In", func() {
+				comparator := &comparators.Date{
+					In: []string{"2025-01-01T00:00:00Z", "2025-12-31T23:59:59Z"},
+				}
+				mods := sqlboiler.ModsForDateComparator(tableName, columnName, comparator)
+
+				Expect(mods).To(HaveLen(1))
+			})
+
+			It("should generate NOT IN clause for Nin", func() {
+				comparator := &comparators.Date{
+					Nin: []string{"2025-01-01T00:00:00Z"},
+				}
+				mods := sqlboiler.ModsForDateComparator(tableName, columnName, comparator)
+
+				Expect(mods).To(HaveLen(1))
+			})
+
+			It("should generate < clause for Lt", func() {
+				date := "2025-01-01T00:00:00Z"
+				comparator := &comparators.Date{Lt: &date}
+				mods := sqlboiler.ModsForDateComparator(tableName, columnName, comparator)
+
+				Expect(mods).To(HaveLen(1))
+			})
+
+			It("should generate <= clause for Lte", func() {
+				date := "2025-01-01T00:00:00Z"
+				comparator := &comparators.Date{Lte: &date}
+				mods := sqlboiler.ModsForDateComparator(tableName, columnName, comparator)
+
+				Expect(mods).To(HaveLen(1))
+			})
+
+			It("should generate > clause for Gt", func() {
+				date := "2025-01-01T00:00:00Z"
+				comparator := &comparators.Date{Gt: &date}
+				mods := sqlboiler.ModsForDateComparator(tableName, columnName, comparator)
+
+				Expect(mods).To(HaveLen(1))
+			})
+
+			It("should generate >= clause for Gte", func() {
+				date := "2025-01-01T00:00:00Z"
+				comparator := &comparators.Date{Gte: &date}
+				mods := sqlboiler.ModsForDateComparator(tableName, columnName, comparator)
+
+				Expect(mods).To(HaveLen(1))
+			})
+		})
+
+		Context("with date-only format", func() {
+			It("should accept date-only format", func() {
+				date := "2025-01-01"
+				comparator := &comparators.Date{Eq: &date}
+				mods := sqlboiler.ModsForDateComparator(tableName, columnName, comparator)
+
+				Expect(mods).To(HaveLen(1))
+			})
+		})
+
+		Context("with multiple operators", func() {
+			It("should combine range operators", func() {
+				gte := "2025-01-01T00:00:00Z"
+				lt := "2025-12-31T23:59:59Z"
+				comparator := &comparators.Date{
+					Gte: &gte,
+					Lt:  &lt,
+				}
+				mods := sqlboiler.ModsForDateComparator(tableName, columnName, comparator)
+
+				Expect(mods).To(HaveLen(2))
+			})
+		})
+
+		Context("when all fields are empty", func() {
+			It("should return empty mods", func() {
+				comparator := &comparators.Date{}
+				mods := sqlboiler.ModsForDateComparator(tableName, columnName, comparator)
+
+				Expect(mods).To(BeEmpty())
+			})
+		})
+	})
+
+	Describe("ModsForNullableDateComparator", func() {
+		Context("when comparator is nil", func() {
+			It("should return empty query mods", func() {
+				mods := sqlboiler.ModsForNullableDateComparator(tableName, columnName, nil)
+				Expect(mods).To(BeEmpty())
+			})
+		})
+
+		Context("with absolute dates", func() {
+			It("should generate = clause for Eq", func() {
+				date := "2025-01-01T00:00:00Z"
+				comparator := &comparators.NullableDate{Eq: &date}
+				mods := sqlboiler.ModsForNullableDateComparator(tableName, columnName, comparator)
+
+				Expect(mods).To(HaveLen(1))
+			})
+
+			It("should generate != clause for Neq", func() {
+				date := "2025-01-01T00:00:00Z"
+				comparator := &comparators.NullableDate{Neq: &date}
+				mods := sqlboiler.ModsForNullableDateComparator(tableName, columnName, comparator)
+
+				Expect(mods).To(HaveLen(1))
+			})
+		})
+
+		Context("with null constraint", func() {
+			It("should add OR IS NULL for null=true with Eq", func() {
+				date := "2025-01-01T00:00:00Z"
+				nullVal := true
+				comparator := &comparators.NullableDate{
+					Eq:   &date,
+					Null: &nullVal,
+				}
+				mods := sqlboiler.ModsForNullableDateComparator(tableName, columnName, comparator)
+
+				Expect(mods).To(HaveLen(1))
+			})
+
+			It("should generate IS NULL for standalone null=true", func() {
+				nullVal := true
+				comparator := &comparators.NullableDate{Null: &nullVal}
+				mods := sqlboiler.ModsForNullableDateComparator(tableName, columnName, comparator)
+
+				Expect(mods).To(HaveLen(1))
+			})
+
+			It("should generate IS NOT NULL for standalone null=false", func() {
+				nullVal := false
+				comparator := &comparators.NullableDate{Null: &nullVal}
+				mods := sqlboiler.ModsForNullableDateComparator(tableName, columnName, comparator)
+
+				Expect(mods).To(HaveLen(1))
+			})
+		})
+
+		Context("with range operators", func() {
+			It("should combine Gte and Lt", func() {
+				gte := "2025-01-01T00:00:00Z"
+				lt := "2025-12-31T23:59:59Z"
+				comparator := &comparators.NullableDate{
+					Gte: &gte,
+					Lt:  &lt,
+				}
+				mods := sqlboiler.ModsForNullableDateComparator(tableName, columnName, comparator)
+
+				Expect(mods).To(HaveLen(2))
+			})
+		})
+
+		Context("when all fields are empty", func() {
+			It("should return empty mods", func() {
+				comparator := &comparators.NullableDate{}
+				mods := sqlboiler.ModsForNullableDateComparator(tableName, columnName, comparator)
+
+				Expect(mods).To(BeEmpty())
+			})
+		})
+	})
 })

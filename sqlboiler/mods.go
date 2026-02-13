@@ -2,9 +2,12 @@ package sqlboiler
 
 import (
 	"fmt"
+	"time"
+
+	"github.com/nrfta/toolkit-go/comparators"
+	"github.com/nrfta/toolkit-go/duration"
 
 	"github.com/aarondl/sqlboiler/v4/queries/qm"
-	"github.com/nrfta/toolkit-go/comparators"
 )
 
 type QueryModder interface {
@@ -467,4 +470,204 @@ func ModsForNullableStringComparator(
 	}
 
 	return appendStandaloneNullConstraint(queryMods, columnName, comparator.Null)
+}
+
+// dateDurationConverter creates a converter function that parses date strings or durations
+// relative to the provided time. Invalid formats are returned as-is (database will handle the error).
+func dateDurationConverter(now time.Time) func(string) interface{} {
+	return func(val string) interface{} {
+		parsed, err := duration.ParseOrPassthrough(val, now)
+		if err != nil {
+			// Return original value if parsing fails - let database handle the error
+			return val
+		}
+		// Parse RFC3339 string back to time.Time for SQL driver
+		t, parseErr := time.Parse(time.RFC3339, parsed)
+		if parseErr != nil {
+			// If parsing fails, return the string and let database handle it
+			return parsed
+		}
+		return t
+	}
+}
+
+// modsForDateComparatorCore contains the shared logic for Date and NullableDate comparators.
+func modsForDateComparatorCore(
+	columnName string,
+	eq, neq, lt, lte, gt, gte *string,
+	in, nin []string,
+	converter func(string) interface{},
+	nullConstraint *bool,
+) []qm.QueryMod {
+	var queryMods []qm.QueryMod
+
+	// For consistency with existing non-nullable comparators, only wrap in parens and add
+	// OR NULL clause when null constraint is actually provided (nullable comparators)
+	orNull := formatOrNullClause(columnName, nullConstraint)
+	hasNullConstraint := nullConstraint != nil
+
+	if eq != nil {
+		var clause string
+		if hasNullConstraint {
+			clause = fmt.Sprintf("(%s = ?%s)", columnName, orNull)
+		} else {
+			clause = fmt.Sprintf("%s = ?", columnName)
+		}
+		queryMods = append(queryMods, qm.Where(
+			clause,
+			converter(*eq),
+		))
+	}
+
+	if neq != nil {
+		var clause string
+		if hasNullConstraint {
+			clause = fmt.Sprintf("(%s != ?%s)", columnName, orNull)
+		} else {
+			clause = fmt.Sprintf("%s != ?", columnName)
+		}
+		queryMods = append(queryMods, qm.Where(
+			clause,
+			converter(*neq),
+		))
+	}
+
+	if len(in) > 0 {
+		converted := make([]interface{}, len(in))
+		for i, val := range in {
+			converted[i] = converter(val)
+		}
+		var clause string
+		if hasNullConstraint {
+			clause = fmt.Sprintf("(%s IN ?%s)", columnName, orNull)
+		} else {
+			clause = fmt.Sprintf("%s IN ?", columnName)
+		}
+		queryMods = append(queryMods, qm.WhereIn(
+			clause,
+			WhereInSet(converted)...,
+		))
+	}
+
+	if len(nin) > 0 {
+		converted := make([]interface{}, len(nin))
+		for i, val := range nin {
+			converted[i] = converter(val)
+		}
+		var clause string
+		if hasNullConstraint {
+			clause = fmt.Sprintf("(%s NOT IN ?%s)", columnName, orNull)
+		} else {
+			clause = fmt.Sprintf("%s NOT IN ?", columnName)
+		}
+		queryMods = append(queryMods, qm.WhereNotIn(
+			clause,
+			WhereInSet(converted)...,
+		))
+	}
+
+	if lt != nil {
+		var clause string
+		if hasNullConstraint {
+			clause = fmt.Sprintf("(%s < ?%s)", columnName, orNull)
+		} else {
+			clause = fmt.Sprintf("%s < ?", columnName)
+		}
+		queryMods = append(queryMods, qm.Where(
+			clause,
+			converter(*lt),
+		))
+	}
+
+	if lte != nil {
+		var clause string
+		if hasNullConstraint {
+			clause = fmt.Sprintf("(%s <= ?%s)", columnName, orNull)
+		} else {
+			clause = fmt.Sprintf("%s <= ?", columnName)
+		}
+		queryMods = append(queryMods, qm.Where(
+			clause,
+			converter(*lte),
+		))
+	}
+
+	if gt != nil {
+		var clause string
+		if hasNullConstraint {
+			clause = fmt.Sprintf("(%s > ?%s)", columnName, orNull)
+		} else {
+			clause = fmt.Sprintf("%s > ?", columnName)
+		}
+		queryMods = append(queryMods, qm.Where(
+			clause,
+			converter(*gt),
+		))
+	}
+
+	if gte != nil {
+		var clause string
+		if hasNullConstraint {
+			clause = fmt.Sprintf("(%s >= ?%s)", columnName, orNull)
+		} else {
+			clause = fmt.Sprintf("%s >= ?", columnName)
+		}
+		queryMods = append(queryMods, qm.Where(
+			clause,
+			converter(*gte),
+		))
+	}
+
+	return appendStandaloneNullConstraint(queryMods, columnName, nullConstraint)
+}
+
+// ModsForDateComparator generates query mods for Date comparators with duration parsing support.
+// Durations (e.g., "P2W", "-P1M") are parsed to absolute RFC3339 timestamps at query generation time.
+func ModsForDateComparator(
+	tableName,
+	columnName string,
+	comparator *comparators.Date,
+) []qm.QueryMod {
+	now := time.Now().UTC()
+	if comparator == nil {
+		return nil
+	}
+
+	columnName = formatColumnName(tableName, columnName)
+	converter := dateDurationConverter(now)
+
+	return modsForDateComparatorCore(
+		columnName,
+		comparator.Eq, comparator.Neq,
+		comparator.Lt, comparator.Lte,
+		comparator.Gt, comparator.Gte,
+		comparator.In, comparator.Nin,
+		converter,
+		nil, // no null constraint
+	)
+}
+
+// ModsForNullableDateComparator generates query mods for NullableDate comparators with duration parsing and null handling.
+func ModsForNullableDateComparator(
+	tableName,
+	columnName string,
+	comparator *comparators.NullableDate,
+) []qm.QueryMod {
+	now := time.Now().UTC()
+	if comparator == nil {
+		return nil
+	}
+
+	columnName = formatColumnName(tableName, columnName)
+	converter := dateDurationConverter(now)
+
+	return modsForDateComparatorCore(
+		columnName,
+		comparator.Eq, comparator.Neq,
+		comparator.Lt, comparator.Lte,
+		comparator.Gt, comparator.Gte,
+		comparator.In, comparator.Nin,
+		converter,
+		comparator.Null, // pass null constraint
+	)
 }
