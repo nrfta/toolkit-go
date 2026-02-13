@@ -1187,4 +1187,270 @@ var _ = Describe("SQLBoiler Query Mod Converters", func() {
 			})
 		})
 	})
+
+	Describe("ModsForIDComparatorWithOr", func() {
+		var (
+			firstColumn  = "xid"
+			secondColumn = "slug"
+		)
+
+		Context("when comparator is nil", func() {
+			It("should return empty query mods", func() {
+				mods := sqlboiler.ModsForIDComparatorWithOr(tableName, firstColumn, secondColumn, nil)
+				Expect(mods).To(BeEmpty())
+			})
+		})
+
+		Context("Eq filter", func() {
+			It("should generate OR expression for equality", func() {
+				id := "test-id"
+				comparator := &comparators.ID{Eq: &id}
+				mods := sqlboiler.ModsForIDComparatorWithOr(tableName, firstColumn, secondColumn, comparator)
+
+				Expect(mods).To(HaveLen(1))
+			})
+
+			It("should not generate mod when Eq is nil", func() {
+				comparator := &comparators.ID{Eq: nil}
+				mods := sqlboiler.ModsForIDComparatorWithOr(tableName, firstColumn, secondColumn, comparator)
+
+				Expect(mods).To(BeEmpty())
+			})
+		})
+
+		Context("In filter", func() {
+			It("should generate OR expression for IN", func() {
+				comparator := &comparators.ID{In: []string{"id1", "id2"}}
+				mods := sqlboiler.ModsForIDComparatorWithOr(tableName, firstColumn, secondColumn, comparator)
+
+				Expect(mods).To(HaveLen(1))
+			})
+
+			It("should not generate mod when In is empty", func() {
+				comparator := &comparators.ID{In: []string{}}
+				mods := sqlboiler.ModsForIDComparatorWithOr(tableName, firstColumn, secondColumn, comparator)
+
+				Expect(mods).To(BeEmpty())
+			})
+		})
+
+		Context("Neq filter", func() {
+			It("should generate OR expression for inequality", func() {
+				id := "test-id"
+				comparator := &comparators.ID{Neq: &id}
+				mods := sqlboiler.ModsForIDComparatorWithOr(tableName, firstColumn, secondColumn, comparator)
+
+				Expect(mods).To(HaveLen(1))
+			})
+		})
+
+		Context("Nin filter", func() {
+			It("should generate OR expression for NOT IN", func() {
+				comparator := &comparators.ID{Nin: []string{"id1", "id2"}}
+				mods := sqlboiler.ModsForIDComparatorWithOr(tableName, firstColumn, secondColumn, comparator)
+
+				Expect(mods).To(HaveLen(1))
+			})
+		})
+
+		Context("with multiple filters", func() {
+			It("should generate multiple OR expressions", func() {
+				id := "test-id"
+				comparator := &comparators.ID{
+					Eq:  &id,
+					In:  []string{"id1", "id2"},
+					Nin: []string{"id3", "id4"},
+				}
+				mods := sqlboiler.ModsForIDComparatorWithOr(tableName, firstColumn, secondColumn, comparator)
+
+				Expect(mods).To(HaveLen(3))
+			})
+		})
+	})
+
+	Describe("ModsForIDArrayComparator", func() {
+		var (
+			arrayColumn = "tag_ids"
+			arrayType   = "text"
+		)
+
+		Context("when comparator is nil", func() {
+			It("should return empty query mods", func() {
+				mods := sqlboiler.ModsForIDArrayComparator(tableName, arrayColumn, arrayType, nil)
+				Expect(mods).To(BeEmpty())
+			})
+		})
+
+		Context("Eq filter (array contains element)", func() {
+			It("should generate ANY query", func() {
+				id := "test-id"
+				comparator := &comparators.ID{Eq: &id}
+				mods := sqlboiler.ModsForIDArrayComparator(tableName, arrayColumn, arrayType, comparator)
+
+				Expect(mods).To(HaveLen(1))
+			})
+
+			It("should not generate mod when Eq is nil", func() {
+				comparator := &comparators.ID{Eq: nil}
+				mods := sqlboiler.ModsForIDArrayComparator(tableName, arrayColumn, arrayType, comparator)
+
+				Expect(mods).To(BeEmpty())
+			})
+		})
+
+		Context("In filter (array overlaps)", func() {
+			It("should generate array overlap query", func() {
+				comparator := &comparators.ID{In: []string{"id1", "id2", "id3"}}
+				mods := sqlboiler.ModsForIDArrayComparator(tableName, arrayColumn, arrayType, comparator)
+
+				Expect(mods).To(HaveLen(1))
+			})
+
+			It("should not generate mod when In is empty", func() {
+				comparator := &comparators.ID{In: []string{}}
+				mods := sqlboiler.ModsForIDArrayComparator(tableName, arrayColumn, arrayType, comparator)
+
+				Expect(mods).To(BeEmpty())
+			})
+		})
+
+		Context("Neq filter (array does not contain)", func() {
+			It("should generate ALL query", func() {
+				id := "test-id"
+				comparator := &comparators.ID{Neq: &id}
+				mods := sqlboiler.ModsForIDArrayComparator(tableName, arrayColumn, arrayType, comparator)
+
+				Expect(mods).To(HaveLen(1))
+			})
+		})
+
+		Context("Nin filter (array does not overlap)", func() {
+			It("should generate NOT overlap query", func() {
+				comparator := &comparators.ID{Nin: []string{"id1", "id2"}}
+				mods := sqlboiler.ModsForIDArrayComparator(tableName, arrayColumn, arrayType, comparator)
+
+				Expect(mods).To(HaveLen(1))
+			})
+		})
+
+		Context("with multiple filters", func() {
+			It("should generate multiple array queries", func() {
+				id := "test-id"
+				comparator := &comparators.ID{
+					Eq:  &id,
+					In:  []string{"id1", "id2"},
+					Nin: []string{"id3"},
+				}
+				mods := sqlboiler.ModsForIDArrayComparator(tableName, arrayColumn, arrayType, comparator)
+
+				Expect(mods).To(HaveLen(3))
+			})
+		})
+
+		Context("without table name", func() {
+			It("should use column name only", func() {
+				id := "test-id"
+				comparator := &comparators.ID{Eq: &id}
+				mods := sqlboiler.ModsForIDArrayComparator("", arrayColumn, arrayType, comparator)
+
+				Expect(mods).To(HaveLen(1))
+			})
+		})
+	})
+
+	Describe("ModsForEnumArrayComparator", func() {
+		type TestEnum string
+
+		var (
+			arrayColumn = "segments"
+			arrayType   = "text"
+		)
+
+		Context("when comparator is nil", func() {
+			It("should return empty query mods", func() {
+				mods := sqlboiler.ModsForEnumArrayComparator[TestEnum](tableName, arrayColumn, arrayType, nil)
+				Expect(mods).To(BeEmpty())
+			})
+		})
+
+		Context("Eq filter (array contains element)", func() {
+			It("should generate ANY query", func() {
+				val := TestEnum("segment1")
+				comparator := &comparators.Enum[TestEnum]{Eq: &val}
+				mods := sqlboiler.ModsForEnumArrayComparator(tableName, arrayColumn, arrayType, comparator)
+
+				Expect(mods).To(HaveLen(1))
+			})
+
+			It("should not generate mod when Eq is nil", func() {
+				comparator := &comparators.Enum[TestEnum]{Eq: nil}
+				mods := sqlboiler.ModsForEnumArrayComparator(tableName, arrayColumn, arrayType, comparator)
+
+				Expect(mods).To(BeEmpty())
+			})
+		})
+
+		Context("In filter (array overlaps)", func() {
+			It("should generate array overlap query", func() {
+				comparator := &comparators.Enum[TestEnum]{
+					In: []TestEnum{"segment1", "segment2", "segment3"},
+				}
+				mods := sqlboiler.ModsForEnumArrayComparator(tableName, arrayColumn, arrayType, comparator)
+
+				Expect(mods).To(HaveLen(1))
+			})
+
+			It("should not generate mod when In is empty", func() {
+				comparator := &comparators.Enum[TestEnum]{In: []TestEnum{}}
+				mods := sqlboiler.ModsForEnumArrayComparator(tableName, arrayColumn, arrayType, comparator)
+
+				Expect(mods).To(BeEmpty())
+			})
+		})
+
+		Context("Neq filter (array does not contain)", func() {
+			It("should generate ALL query", func() {
+				val := TestEnum("segment1")
+				comparator := &comparators.Enum[TestEnum]{Neq: &val}
+				mods := sqlboiler.ModsForEnumArrayComparator(tableName, arrayColumn, arrayType, comparator)
+
+				Expect(mods).To(HaveLen(1))
+			})
+		})
+
+		Context("Nin filter (array does not overlap)", func() {
+			It("should generate NOT overlap query", func() {
+				comparator := &comparators.Enum[TestEnum]{
+					Nin: []TestEnum{"segment1", "segment2"},
+				}
+				mods := sqlboiler.ModsForEnumArrayComparator(tableName, arrayColumn, arrayType, comparator)
+
+				Expect(mods).To(HaveLen(1))
+			})
+		})
+
+		Context("with multiple filters", func() {
+			It("should generate multiple array queries", func() {
+				val := TestEnum("segment1")
+				comparator := &comparators.Enum[TestEnum]{
+					Eq:  &val,
+					In:  []TestEnum{"segment2", "segment3"},
+					Nin: []TestEnum{"segment4"},
+				}
+				mods := sqlboiler.ModsForEnumArrayComparator(tableName, arrayColumn, arrayType, comparator)
+
+				Expect(mods).To(HaveLen(3))
+			})
+		})
+
+		Context("without table name", func() {
+			It("should use column name only", func() {
+				val := TestEnum("segment1")
+				comparator := &comparators.Enum[TestEnum]{Eq: &val}
+				mods := sqlboiler.ModsForEnumArrayComparator("", arrayColumn, arrayType, comparator)
+
+				Expect(mods).To(HaveLen(1))
+			})
+		})
+	})
 })
