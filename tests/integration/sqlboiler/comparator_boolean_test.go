@@ -47,8 +47,6 @@ var _ = Describe("Boolean Comparator", func() {
 			results, err := repo.GetAll(ctx, filters...)
 
 			Expect(err).NotTo(HaveOccurred())
-			// We seed 20 products with i%2==1 having is_available=false
-			// So we should have exactly 10 products with is_available=false
 			Expect(results).To(HaveLen(10))
 			for _, result := range results {
 				Expect(result.IsAvailable).To(BeFalse())
@@ -56,7 +54,6 @@ var _ = Describe("Boolean Comparator", func() {
 		})
 
 		It("should filter by Neq=true", func() {
-			// Neq=true should return all records where is_available != true (i.e., false)
 			isAvailable := true
 			filters := []ProductFilter{
 				{IsAvailable: &comparators.Boolean{Neq: &isAvailable}},
@@ -71,7 +68,6 @@ var _ = Describe("Boolean Comparator", func() {
 		})
 
 		It("should filter by Neq=false", func() {
-			// Neq=false should return all records where is_available != false (i.e., true)
 			isAvailable := false
 			filters := []ProductFilter{
 				{IsAvailable: &comparators.Boolean{Neq: &isAvailable}},
@@ -87,8 +83,6 @@ var _ = Describe("Boolean Comparator", func() {
 		})
 
 		It("should handle both Eq and Neq together", func() {
-			// This is a logical edge case - Eq and Neq together would be contradictory
-			// But we should test how the system handles it (likely no results or error)
 			isAvailable := true
 			filters := []ProductFilter{
 				{IsAvailable: &comparators.Boolean{
@@ -99,7 +93,6 @@ var _ = Describe("Boolean Comparator", func() {
 
 			results, err := repo.GetAll(ctx, filters...)
 
-			// Should either error or return empty results
 			if err == nil {
 				Expect(results).To(BeEmpty())
 			}

@@ -31,7 +31,6 @@ func SeedProducts(ctx context.Context, db *sql.DB, count int) ([]*models.Product
 			Categories:  types.StringArray{"tech"},
 		}
 
-		// Vary status for some products
 		if i%3 == 0 {
 			product.Status = "inactive"
 		}
@@ -39,25 +38,21 @@ func SeedProducts(ctx context.Context, db *sql.DB, count int) ([]*models.Product
 			product.Status = "deleted"
 		}
 
-		// Vary availability - ensure at least some are false
 		if i%2 == 1 {
 			product.IsAvailable = false
 		}
 
-		// Make some descriptions null
 		if i%6 == 0 {
 			product.Description = null.String{}
 		}
 
-		// Use Whitelist instead of Infer() to ensure boolean false values are included
-		// boil.Infer() treats false as a "zero value" and skips it
 		if err := product.Insert(ctx, db, boil.Whitelist(
 			models.ProductColumns.ID,
 			models.ProductColumns.Name,
 			models.ProductColumns.Description,
 			models.ProductColumns.Status,
 			models.ProductColumns.Price,
-			models.ProductColumns.IsAvailable, // Explicitly include to handle false values
+			models.ProductColumns.IsAvailable,
 			models.ProductColumns.CreatedAt,
 			models.ProductColumns.UpdatedAt,
 			models.ProductColumns.Tags,
@@ -86,7 +81,6 @@ func SeedUsers(ctx context.Context, db *sql.DB, count int) ([]*models.User, erro
 			CreatedAt:      time.Now().Add(time.Duration(-i) * time.Hour),
 		}
 
-		// Vary roles
 		if i%3 == 0 {
 			user.Role = "admin"
 		}
@@ -94,12 +88,10 @@ func SeedUsers(ctx context.Context, db *sql.DB, count int) ([]*models.User, erro
 			user.Role = "moderator"
 		}
 
-		// Make some names null
 		if i%4 == 0 {
 			user.Name = null.String{}
 		}
 
-		// Make some organization IDs null
 		if i%3 == 0 {
 			user.OrganizationID = null.String{}
 		}
@@ -133,7 +125,6 @@ func SeedOrders(ctx context.Context, db *sql.DB, users []*models.User, products 
 			Status:      "pending",
 		}
 
-		// Vary status
 		if i%3 == 0 {
 			order.Status = "shipped"
 		}
@@ -141,7 +132,6 @@ func SeedOrders(ctx context.Context, db *sql.DB, users []*models.User, products 
 			order.Status = "delivered"
 		}
 
-		// Make some shipped dates null
 		if i%4 == 0 {
 			order.ShippedDate = null.Time{}
 		}
@@ -161,7 +151,6 @@ func SeedTags(ctx context.Context, db *sql.DB, products []*models.Product, count
 	tags := make([]*models.Tag, count)
 
 	for i := 0; i < count; i++ {
-		// Build product IDs array
 		var productIDs []string
 		for j := 0; j < min(len(products), i+2); j++ {
 			productIDs = append(productIDs, products[j].ID)

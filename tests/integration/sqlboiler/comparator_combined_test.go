@@ -52,7 +52,6 @@ var _ = Describe("Combined Comparator Integration Tests", func() {
 		})
 
 		It("should combine ID, Date, and String filters", func() {
-			// Test combining different types of comparators
 			searchTerm := "Product"
 			filters := []ProductFilter{
 				{
@@ -64,16 +63,15 @@ var _ = Describe("Combined Comparator Integration Tests", func() {
 			results, err := repo.GetAll(ctx, filters...)
 
 			Expect(err).NotTo(HaveOccurred())
-			Expect(results).To(HaveLen(19)) // All except products[0]
+			Expect(results).To(HaveLen(19))
 			for _, result := range results {
 				Expect(result.ID).NotTo(Equal(products[0].ID))
 			}
 		})
 
 		It("should combine nullable and non-nullable filters", func() {
-			// Test that nullable and regular filters work together
 			status := "active"
-			nullVal := false // Only non-NULL descriptions
+			nullVal := false
 
 			filters := []ProductFilter{
 				{
@@ -93,7 +91,6 @@ var _ = Describe("Combined Comparator Integration Tests", func() {
 		})
 
 		It("should handle empty results when filters don't match", func() {
-			// Combine filters that won't match any records
 			status := "active"
 			isAvailable := false
 
@@ -107,12 +104,9 @@ var _ = Describe("Combined Comparator Integration Tests", func() {
 			_, err := repo.GetAll(ctx, filters...)
 
 			Expect(err).NotTo(HaveOccurred())
-			// This combination might not exist in seed data
-			// Just verify no error occurred
 		})
 
 		It("should combine In and Contains filters", func() {
-			// Test multiple list-based comparators together
 			ids := []string{products[0].ID, products[1].ID, products[2].ID}
 			searchTerm := "Product"
 
