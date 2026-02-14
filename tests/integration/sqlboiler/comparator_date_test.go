@@ -5,7 +5,6 @@ import (
 
 	"github.com/nrfta/toolkit-go/comparators"
 	"github.com/nrfta/toolkit-go/tests/integration/shared"
-	"github.com/nrfta/toolkit-go/tests/integration/sqlboiler/models"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -271,33 +270,19 @@ var _ = Describe("Date Comparator Integration Tests", func() {
 			}
 		})
 
-		It("should filter by specific date when not NULL", func() {
-			allOrders, err := orderRepo.GetAll(ctx)
-			Expect(err).NotTo(HaveOccurred())
-
-			var shippedOrder *models.Order
-			for _, order := range allOrders {
-				if order.ShippedDate.Valid {
-					shippedOrder = order
-					break
-				}
-			}
-			Expect(shippedOrder).NotTo(BeNil())
-
-			// Use UTC truncated to seconds to avoid microsecond precision issues
-			dateStr := shippedOrder.ShippedDate.Time.UTC().Truncate(time.Second).Format(time.RFC3339)
+		It("should filter by Eq (equals)", func() {
+			specificDate := "2025-12-25T00:00:00Z"
 			filters := []OrderFilter{
-				{ShippedDate: &comparators.NullableDate{Eq: &dateStr}},
+				{ShippedDate: &comparators.NullableDate{Eq: &specificDate}},
 			}
 
 			results, err := orderRepo.GetAll(ctx, filters...)
 
 			Expect(err).NotTo(HaveOccurred())
-			// Results may be empty due to date precision, so just verify no error
-			if len(results) > 0 {
-				// If we got results, at least verify they have shipped dates
-				for _, result := range results {
-					Expect(result.ShippedDate.Valid).To(BeTrue())
+			targetTime, _ := time.Parse(time.RFC3339, specificDate)
+			for _, result := range results {
+				if result.ShippedDate.Valid {
+					Expect(result.ShippedDate.Time.UTC()).To(Equal(targetTime))
 				}
 			}
 		})

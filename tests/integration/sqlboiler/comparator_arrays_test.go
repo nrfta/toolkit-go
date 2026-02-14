@@ -4,7 +4,9 @@ import (
 	"github.com/aarondl/sqlboiler/v4/boil"
 	"github.com/aarondl/sqlboiler/v4/types"
 	"github.com/nrfta/toolkit-go/comparators"
+	"github.com/nrfta/toolkit-go/sqlboiler"
 	"github.com/nrfta/toolkit-go/tests/integration/shared"
+	"github.com/nrfta/toolkit-go/tests/integration/sqlboiler/models"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -105,11 +107,11 @@ var _ = Describe("Array Comparator Integration Tests", func() {
 
 		It("should filter categories array by Eq", func() {
 			category := "tech"
-			filters := []ProductFilter{
-				{Categories: &comparators.ID{Eq: &category}},
-			}
+			mods := sqlboiler.ModsForEnumArrayComparator("products", "categories", "text", &comparators.Enum[string]{
+				Eq: &category,
+			})
 
-			results, err := repo.GetAll(ctx, filters...)
+			results, err := models.Products(mods...).All(ctx, db)
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(results).NotTo(BeEmpty())
@@ -119,16 +121,14 @@ var _ = Describe("Array Comparator Integration Tests", func() {
 		})
 
 		It("should filter categories array by Neq", func() {
-			// Products that don't have "discontinued" category
 			category := "discontinued"
-			filters := []ProductFilter{
-				{Categories: &comparators.ID{Neq: &category}},
-			}
+			mods := sqlboiler.ModsForEnumArrayComparator("products", "categories", "text", &comparators.Enum[string]{
+				Neq: &category,
+			})
 
-			results, err := repo.GetAll(ctx, filters...)
+			results, err := models.Products(mods...).All(ctx, db)
 
 			Expect(err).NotTo(HaveOccurred())
-			// All seeded products should be returned since none have "discontinued"
 			Expect(results).To(HaveLen(10))
 			for _, result := range results {
 				Expect(result.Categories).NotTo(ContainElement("discontinued"))
@@ -137,27 +137,25 @@ var _ = Describe("Array Comparator Integration Tests", func() {
 
 		It("should filter categories array by In", func() {
 			categories := []string{"tech", "home"}
-			filters := []ProductFilter{
-				{Categories: &comparators.ID{In: categories}},
-			}
+			mods := sqlboiler.ModsForEnumArrayComparator("products", "categories", "text", &comparators.Enum[string]{
+				In: categories,
+			})
 
-			results, err := repo.GetAll(ctx, filters...)
+			results, err := models.Products(mods...).All(ctx, db)
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(results).NotTo(BeEmpty())
 		})
 
 		It("should filter categories array by Nin", func() {
-			// Products that don't overlap with these categories
 			categories := []string{"discontinued", "archived"}
-			filters := []ProductFilter{
-				{Categories: &comparators.ID{Nin: categories}},
-			}
+			mods := sqlboiler.ModsForEnumArrayComparator("products", "categories", "text", &comparators.Enum[string]{
+				Nin: categories,
+			})
 
-			results, err := repo.GetAll(ctx, filters...)
+			results, err := models.Products(mods...).All(ctx, db)
 
 			Expect(err).NotTo(HaveOccurred())
-			// All seeded products should be returned since none have these categories
 			Expect(results).To(HaveLen(10))
 			for _, result := range results {
 				for _, cat := range categories {
