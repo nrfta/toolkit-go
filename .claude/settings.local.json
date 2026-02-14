@@ -7,7 +7,25 @@
       "Bash(go fmt:*)",
       "Bash(find:*)",
       "Bash(grep:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(go mod tidy:*)",
+      "WebFetch(domain:linear.app)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:studio.apollographql.com)",
+      "WebFetch(domain:developers.linear.app)",
+      "Bash(go doc:*)",
+      "Bash(go run -c 'package main; import \\(\"\"fmt\"\"; \"\"github.com/sosodev/duration\"\"\\); func main\\(\\) { d, err := duration.Parse\\(\"\"P\"\"\\); fmt.Println\\(d, err\\) }')",
+      "Bash(ls:*)",
+      "Bash(go mod edit:*)",
+      "Bash(docker run:*)",
+      "Bash(go install:*)",
+      "Bash(sqlboiler psql:*)",
+      "Bash(yes:*)",
+      "Bash(docker stop:*)",
+      "Bash(docker rm:*)",
+      "Bash(head:*)",
+      "Bash(go clean:*)",
+      "Bash(go list:*)"
     ]
   }
 }
