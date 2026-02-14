@@ -56,7 +56,8 @@ var _ = Describe("Date Comparator Integration Tests", func() {
 		})
 
 		It("should filter by Gte (greater than or equal)", func() {
-			fiveDaysAgo := time.Now().UTC().Add(-5 * 24 * time.Hour).Format(time.RFC3339)
+			fiveDaysAgoTime := time.Now().UTC().Add(-5 * 24 * time.Hour)
+			fiveDaysAgo := fiveDaysAgoTime.Format(time.RFC3339)
 
 			filters := []OrderFilter{
 				{OrderDate: &comparators.Date{Gte: &fiveDaysAgo}},
@@ -66,9 +67,8 @@ var _ = Describe("Date Comparator Integration Tests", func() {
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(results).NotTo(BeEmpty())
-			fiveDaysAgoTime := time.Now().UTC().Add(-5 * 24 * time.Hour)
 			for _, result := range results {
-				Expect(result.OrderDate.UTC()).To(BeTemporally(">=", fiveDaysAgoTime))
+				Expect(result.OrderDate.UTC()).To(BeTemporally(">=", fiveDaysAgoTime.Add(-1*time.Second)))
 			}
 		})
 
@@ -105,7 +105,8 @@ var _ = Describe("Date Comparator Integration Tests", func() {
 		})
 
 		It("should filter by Gt (greater than)", func() {
-			fiveDaysAgo := time.Now().UTC().Add(-5 * 24 * time.Hour).Format(time.RFC3339)
+			fiveDaysAgoTime := time.Now().UTC().Add(-5 * 24 * time.Hour)
+			fiveDaysAgo := fiveDaysAgoTime.Format(time.RFC3339)
 
 			filters := []OrderFilter{
 				{OrderDate: &comparators.Date{Gt: &fiveDaysAgo}},
@@ -114,9 +115,8 @@ var _ = Describe("Date Comparator Integration Tests", func() {
 			results, err := orderRepo.GetAll(ctx, filters...)
 
 			Expect(err).NotTo(HaveOccurred())
-			fiveDaysAgoTime := time.Now().UTC().Add(-5 * 24 * time.Hour)
 			for _, result := range results {
-				Expect(result.OrderDate.UTC()).To(BeTemporally(">", fiveDaysAgoTime))
+				Expect(result.OrderDate.UTC()).To(BeTemporally(">", fiveDaysAgoTime.Add(-1*time.Second)))
 			}
 		})
 
@@ -137,8 +137,10 @@ var _ = Describe("Date Comparator Integration Tests", func() {
 		})
 
 		It("should filter by range (Gte + Lt)", func() {
-			sevenDaysAgo := time.Now().UTC().Add(-7 * 24 * time.Hour).Format(time.RFC3339)
-			oneDayAgo := time.Now().UTC().Add(-1 * 24 * time.Hour).Format(time.RFC3339)
+			sevenDaysAgoTime := time.Now().UTC().Add(-7 * 24 * time.Hour)
+			oneDayAgoTime := time.Now().UTC().Add(-1 * 24 * time.Hour)
+			sevenDaysAgo := sevenDaysAgoTime.Format(time.RFC3339)
+			oneDayAgo := oneDayAgoTime.Format(time.RFC3339)
 
 			filters := []OrderFilter{
 				{OrderDate: &comparators.Date{
@@ -150,11 +152,9 @@ var _ = Describe("Date Comparator Integration Tests", func() {
 			results, err := orderRepo.GetAll(ctx, filters...)
 
 			Expect(err).NotTo(HaveOccurred())
-			sevenDaysAgoTime := time.Now().UTC().Add(-7 * 24 * time.Hour)
-			oneDayAgoTime := time.Now().UTC().Add(-1 * 24 * time.Hour)
 			for _, result := range results {
-				Expect(result.OrderDate.UTC()).To(BeTemporally(">=", sevenDaysAgoTime))
-				Expect(result.OrderDate.UTC()).To(BeTemporally("<", oneDayAgoTime))
+				Expect(result.OrderDate.UTC()).To(BeTemporally(">=", sevenDaysAgoTime.Add(-1*time.Second)))
+				Expect(result.OrderDate.UTC()).To(BeTemporally("<", oneDayAgoTime.Add(1*time.Second)))
 			}
 		})
 	})
@@ -173,6 +173,7 @@ var _ = Describe("Date Comparator Integration Tests", func() {
 
 		It("should parse negative duration (past) with -P format", func() {
 			pastWeek := "-P7D"
+			sevenDaysAgoTime := time.Now().Add(-7 * 24 * time.Hour)
 
 			filters := []OrderFilter{
 				{OrderDate: &comparators.Date{Gte: &pastWeek}},
@@ -182,9 +183,8 @@ var _ = Describe("Date Comparator Integration Tests", func() {
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(results).NotTo(BeEmpty())
-			sevenDaysAgo := time.Now().Add(-7 * 24 * time.Hour)
 			for _, result := range results {
-				Expect(result.OrderDate).To(BeTemporally(">=", sevenDaysAgo))
+				Expect(result.OrderDate).To(BeTemporally(">=", sevenDaysAgoTime.Add(-1*time.Second)))
 			}
 		})
 
@@ -324,7 +324,8 @@ var _ = Describe("Date Comparator Integration Tests", func() {
 		})
 
 		It("should filter by Gt (greater than)", func() {
-			fiveDaysAgo := time.Now().UTC().Add(-5 * 24 * time.Hour).Format(time.RFC3339)
+			fiveDaysAgoTime := time.Now().UTC().Add(-5 * 24 * time.Hour)
+			fiveDaysAgo := fiveDaysAgoTime.Format(time.RFC3339)
 
 			filters := []OrderFilter{
 				{ShippedDate: &comparators.NullableDate{Gt: &fiveDaysAgo}},
@@ -333,10 +334,9 @@ var _ = Describe("Date Comparator Integration Tests", func() {
 			results, err := orderRepo.GetAll(ctx, filters...)
 
 			Expect(err).NotTo(HaveOccurred())
-			fiveDaysAgoTime := time.Now().UTC().Add(-5 * 24 * time.Hour)
 			for _, result := range results {
 				Expect(result.ShippedDate.Valid).To(BeTrue())
-				Expect(result.ShippedDate.Time.UTC()).To(BeTemporally(">", fiveDaysAgoTime))
+				Expect(result.ShippedDate.Time.UTC()).To(BeTemporally(">", fiveDaysAgoTime.Add(-1*time.Second)))
 			}
 		})
 
