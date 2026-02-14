@@ -1,0 +1,26 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+.idea/**
+bin/
+
+# Test binary, build with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Other
+gin-bin
+*_gen.go
+.DS_Store
+
+# Ginkgo Test Coverage Output
+*.coverprofile
+
+# Claude local settings
+.claude/settings.local.json
