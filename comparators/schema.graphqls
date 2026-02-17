@@ -172,6 +172,12 @@ input NullableStringComparator
   null: Boolean
 }
 
+# Represents a date and time in ISO 8601 format.
+# Also accepts ISO 8601 durations strings which are added to the current
+# date to create the represented date (e.g '-P2W1D' represents the date that was
+# two weeks and 1 day ago)
+scalar DateTimeOrDuration
+
 """
 DateComparator is used to filter results based on date/datetime values.
 
@@ -193,42 +199,42 @@ input DateComparator
   Checks if the date equals the provided value.
   Accepts RFC3339, date-only, or ISO 8601 duration (e.g., "P2W", "-P1M").
   """
-  eq: String
+  eq: DateTimeOrDuration
 
   """
   Checks if the date does not equal the provided value.
   """
-  neq: String
+  neq: DateTimeOrDuration
 
   """
   Checks if the date is within the provided list of values.
   """
-  in: [String!]
+  in: [DateTimeOrDuration!]
 
   """
   Checks if the date is not within the provided list of values.
   """
-  nin: [String!]
+  nin: [DateTimeOrDuration!]
 
   """
   Checks if the date is less than the provided value (before).
   """
-  lt: String
+  lt: DateTimeOrDuration
 
   """
   Checks if the date is less than or equal to the provided value.
   """
-  lte: String
+  lte: DateTimeOrDuration
 
   """
   Checks if the date is greater than the provided value (after).
   """
-  gt: String
+  gt: DateTimeOrDuration
 
   """
   Checks if the date is greater than or equal to the provided value.
   """
-  gte: String
+  gte: DateTimeOrDuration
 }
 
 """
