@@ -17,9 +17,6 @@ type QueryModder interface {
 // ModderConverter is a function that converts a filter to a QueryModder
 type ModderConverter func(any) (QueryModder, error)
 
-// For backward compatibility
-type modderConverter = ModderConverter
-
 // Mods converts a slice of filters to a slice of QueryMods using the provided ModderConverter function
 func Mods[T any](filters []T, converter ModderConverter) ([]qm.QueryMod, error) {
 	var mods []qm.QueryMod
@@ -767,12 +764,12 @@ func ModsForIDArrayComparator(
 		)
 	}
 
-	// Add NOT IN filter (array does not contain any of the elements in the list)
+	// Add NOT IN filter (array does not overlap with the list)
 	if len(comparator.Nin) > 0 {
 		queryMods = append(
 			queryMods,
-			qm.WhereNotIn(
-				fmt.Sprintf("ARRAY[%s]::%s[] && %s", placeholders(len(comparator.Nin)), arrayType, columnName),
+			qm.Where(
+				fmt.Sprintf("NOT (%s && ARRAY[%s]::%s[])", columnName, placeholders(len(comparator.Nin)), arrayType),
 				WhereInSet(comparator.Nin)...,
 			),
 		)
@@ -825,12 +822,12 @@ func ModsForEnumArrayComparator[T ~string](
 		)
 	}
 
-	// Add NOT IN filter (array does not contain any of the elements in the list)
+	// Add NOT IN filter (array does not overlap with the list)
 	if len(comparator.Nin) > 0 {
 		queryMods = append(
 			queryMods,
-			qm.WhereNotIn(
-				fmt.Sprintf("ARRAY[%s]::%s[] && %s", placeholders(len(comparator.Nin)), arrayType, columnName),
+			qm.Where(
+				fmt.Sprintf("NOT (%s && ARRAY[%s]::%s[])", columnName, placeholders(len(comparator.Nin)), arrayType),
 				WhereInSet(comparator.Nin)...,
 			),
 		)
