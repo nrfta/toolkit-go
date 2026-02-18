@@ -1235,7 +1235,7 @@ var _ = Describe("SQLBoiler Query Mod Converters", func() {
 		})
 
 		Context("Neq filter", func() {
-			It("should generate OR expression for inequality", func() {
+			It("should generate AND expression for inequality (both columns must not match)", func() {
 				id := "test-id"
 				comparator := &comparators.ID{Neq: &id}
 				mods := sqlboiler.ModsForIDComparatorWithOr(tableName, firstColumn, secondColumn, comparator)
@@ -1245,7 +1245,7 @@ var _ = Describe("SQLBoiler Query Mod Converters", func() {
 		})
 
 		Context("Nin filter", func() {
-			It("should generate OR expression for NOT IN", func() {
+			It("should generate AND expression for NOT IN (both columns must not match)", func() {
 				comparator := &comparators.ID{Nin: []string{"id1", "id2"}}
 				mods := sqlboiler.ModsForIDComparatorWithOr(tableName, firstColumn, secondColumn, comparator)
 

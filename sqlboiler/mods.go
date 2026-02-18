@@ -671,6 +671,9 @@ func ModsForNullableDateComparator(
 
 // ModsForIDComparatorWithOr generates query mods for ID comparators with OR logic between two columns.
 // This is useful when a value can match either of two ID columns (e.g., key can be either xid OR slug).
+//
+// For positive filters (Eq, In), uses OR logic: value matches either column
+// For negative filters (Neq, Nin), uses AND logic: value must not match both columns
 func ModsForIDComparatorWithOr(
 	tableName,
 	idColumnName,
@@ -685,7 +688,8 @@ func ModsForIDComparatorWithOr(
 	idColumnName = formatColumnName(tableName, idColumnName)
 	secondIDColumnName = formatColumnName(tableName, secondIDColumnName)
 
-	// Add equality filter
+	// Positive filters: OR logic (match either column)
+	// Add equality filter: (col1 = ? OR col2 = ?)
 	if comparator.Eq != nil {
 		queryMods = append(queryMods, qm.Expr(
 			qm.Where(fmt.Sprintf("%s = ?", idColumnName), comparator.Eq),
@@ -693,7 +697,7 @@ func ModsForIDComparatorWithOr(
 		))
 	}
 
-	// Add IN filter
+	// Add IN filter: (col1 IN ? OR col2 IN ?)
 	if len(comparator.In) > 0 {
 		queryMods = append(queryMods, qm.Expr(
 			qm.WhereIn(fmt.Sprintf("%s IN ?", idColumnName), WhereInSet(comparator.In)...),
@@ -701,19 +705,20 @@ func ModsForIDComparatorWithOr(
 		))
 	}
 
-	// Add inequality filter
+	// Negative filters: AND logic (both columns must not match)
+	// Add inequality filter: (col1 != ? AND col2 != ?)
 	if comparator.Neq != nil {
 		queryMods = append(queryMods, qm.Expr(
 			qm.Where(fmt.Sprintf("%s != ?", idColumnName), comparator.Neq),
-			qm.Or(fmt.Sprintf("%s != ?", secondIDColumnName), comparator.Neq),
+			qm.And(fmt.Sprintf("%s != ?", secondIDColumnName), comparator.Neq),
 		))
 	}
 
-	// Add NOT IN filter
+	// Add NOT IN filter: (col1 NOT IN ? AND col2 NOT IN ?)
 	if len(comparator.Nin) > 0 {
 		queryMods = append(queryMods, qm.Expr(
 			qm.WhereNotIn(fmt.Sprintf("%s NOT IN ?", idColumnName), WhereInSet(comparator.Nin)...),
-			qm.OrNotIn(fmt.Sprintf("%s NOT IN ?", secondIDColumnName), WhereInSet(comparator.Nin)...),
+			qm.AndNotIn(fmt.Sprintf("%s NOT IN ?", secondIDColumnName), WhereInSet(comparator.Nin)...),
 		))
 	}
 
