@@ -78,10 +78,10 @@ var _ = Describe("ID Comparator With OR", func() {
 			}
 		})
 
-		It("should match records where either column does not equal the value", func() {
-			// Find orders where user_id != targetID OR product_id != targetID
-			// This should match almost all records
-			targetID := "nonexistent-id"
+		It("should match records where BOTH columns do not equal the value (AND logic)", func() {
+			// With AND logic: user_id != targetID AND product_id != targetID
+			// This excludes records where EITHER column matches
+			targetID := users[0].ID
 
 			mods := sqlboiler.ModsForIDComparatorWithOr(
 				"orders",
@@ -93,13 +93,17 @@ var _ = Describe("ID Comparator With OR", func() {
 			results, err := models.Orders(mods...).All(ctx, db)
 
 			Expect(err).NotTo(HaveOccurred())
-			// Should match all orders since none have this ID
-			Expect(results).To(HaveLen(10))
+			// Each result should have user_id != targetID AND product_id != targetID
+			for _, order := range results {
+				Expect(order.UserID).NotTo(Equal(targetID))
+				Expect(order.ProductID).NotTo(Equal(targetID))
+			}
 		})
 
-		It("should match records where either column is not in the list", func() {
-			// Find orders where user_id NOT IN ids OR product_id NOT IN ids
-			ids := []string{"nonexistent-1", "nonexistent-2"}
+		It("should match records where BOTH columns are not in the list (AND logic)", func() {
+			// With AND logic: user_id NOT IN ids AND product_id NOT IN ids
+			// This excludes records where EITHER column matches
+			ids := []string{users[0].ID, users[1].ID}
 
 			mods := sqlboiler.ModsForIDComparatorWithOr(
 				"orders",
@@ -111,8 +115,11 @@ var _ = Describe("ID Comparator With OR", func() {
 			results, err := models.Orders(mods...).All(ctx, db)
 
 			Expect(err).NotTo(HaveOccurred())
-			// Should match all orders since none have these IDs
-			Expect(results).To(HaveLen(10))
+			// Each result should have user_id NOT IN ids AND product_id NOT IN ids
+			for _, order := range results {
+				Expect(shared.Contains(ids, order.UserID)).To(BeFalse())
+				Expect(shared.Contains(ids, order.ProductID)).To(BeFalse())
+			}
 		})
 
 		It("should handle nil comparator", func() {
