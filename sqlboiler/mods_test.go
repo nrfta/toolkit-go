@@ -1358,6 +1358,145 @@ var _ = Describe("SQLBoiler Query Mod Converters", func() {
 		})
 	})
 
+	Describe("ModsForNullableIDArrayComparator", func() {
+		var (
+			arrayColumn = "tags"
+			arrayType   = "text"
+		)
+
+		boolPtr := func(v bool) *bool { return &v }
+		strPtr := func(v string) *string { return &v }
+
+		Context("when comparator is nil", func() {
+			It("should return empty query mods", func() {
+				mods := sqlboiler.ModsForNullableIDArrayComparator(tableName, arrayColumn, arrayType, nil)
+				Expect(mods).To(BeEmpty())
+			})
+		})
+
+		Context("Null=true only", func() {
+			It("should generate IS NULL OR cardinality = 0", func() {
+				comparator := &comparators.NullableID{Null: boolPtr(true)}
+				mods := sqlboiler.ModsForNullableIDArrayComparator(tableName, arrayColumn, arrayType, comparator)
+
+				Expect(mods).To(HaveLen(1))
+			})
+		})
+
+		Context("Null=false only", func() {
+			It("should generate IS NOT NULL AND cardinality > 0", func() {
+				comparator := &comparators.NullableID{Null: boolPtr(false)}
+				mods := sqlboiler.ModsForNullableIDArrayComparator(tableName, arrayColumn, arrayType, comparator)
+
+				Expect(mods).To(HaveLen(1))
+			})
+		})
+
+		Context("Eq only", func() {
+			It("should generate ANY query", func() {
+				comparator := &comparators.NullableID{Eq: strPtr("test-id")}
+				mods := sqlboiler.ModsForNullableIDArrayComparator(tableName, arrayColumn, arrayType, comparator)
+
+				Expect(mods).To(HaveLen(1))
+			})
+
+			It("should not generate mod when Eq is nil", func() {
+				comparator := &comparators.NullableID{Eq: nil}
+				mods := sqlboiler.ModsForNullableIDArrayComparator(tableName, arrayColumn, arrayType, comparator)
+
+				Expect(mods).To(BeEmpty())
+			})
+		})
+
+		Context("In only", func() {
+			It("should generate overlap query", func() {
+				comparator := &comparators.NullableID{In: []string{"id1", "id2"}}
+				mods := sqlboiler.ModsForNullableIDArrayComparator(tableName, arrayColumn, arrayType, comparator)
+
+				Expect(mods).To(HaveLen(1))
+			})
+
+			It("should not generate mod when In is empty", func() {
+				comparator := &comparators.NullableID{In: []string{}}
+				mods := sqlboiler.ModsForNullableIDArrayComparator(tableName, arrayColumn, arrayType, comparator)
+
+				Expect(mods).To(BeEmpty())
+			})
+		})
+
+		Context("Neq only", func() {
+			It("should generate NOT ALL query", func() {
+				comparator := &comparators.NullableID{Neq: strPtr("test-id")}
+				mods := sqlboiler.ModsForNullableIDArrayComparator(tableName, arrayColumn, arrayType, comparator)
+
+				Expect(mods).To(HaveLen(1))
+			})
+		})
+
+		Context("Nin only", func() {
+			It("should generate NOT overlap query", func() {
+				comparator := &comparators.NullableID{Nin: []string{"id1", "id2"}}
+				mods := sqlboiler.ModsForNullableIDArrayComparator(tableName, arrayColumn, arrayType, comparator)
+
+				Expect(mods).To(HaveLen(1))
+			})
+
+			It("should not generate mod when Nin is empty", func() {
+				comparator := &comparators.NullableID{Nin: []string{}}
+				mods := sqlboiler.ModsForNullableIDArrayComparator(tableName, arrayColumn, arrayType, comparator)
+
+				Expect(mods).To(BeEmpty())
+			})
+		})
+
+		Context("Null=true + In (ORed into single clause)", func() {
+			It("should generate 1 mod with OR", func() {
+				comparator := &comparators.NullableID{
+					Null: boolPtr(true),
+					In:   []string{"id1", "id2"},
+				}
+				mods := sqlboiler.ModsForNullableIDArrayComparator(tableName, arrayColumn, arrayType, comparator)
+
+				Expect(mods).To(HaveLen(1))
+			})
+		})
+
+		Context("Null=true + Eq (ORed into single clause)", func() {
+			It("should generate 1 mod with OR", func() {
+				comparator := &comparators.NullableID{
+					Null: boolPtr(true),
+					Eq:   strPtr("test-id"),
+				}
+				mods := sqlboiler.ModsForNullableIDArrayComparator(tableName, arrayColumn, arrayType, comparator)
+
+				Expect(mods).To(HaveLen(1))
+			})
+		})
+
+		Context("Combined: Eq + In + Neq + Nin (no Null)", func() {
+			It("should generate 4 mods", func() {
+				comparator := &comparators.NullableID{
+					Eq:  strPtr("id1"),
+					In:  []string{"id2", "id3"},
+					Neq: strPtr("id4"),
+					Nin: []string{"id5"},
+				}
+				mods := sqlboiler.ModsForNullableIDArrayComparator(tableName, arrayColumn, arrayType, comparator)
+
+				Expect(mods).To(HaveLen(4))
+			})
+		})
+
+		Context("without table name", func() {
+			It("should use column name only", func() {
+				comparator := &comparators.NullableID{Eq: strPtr("test-id")}
+				mods := sqlboiler.ModsForNullableIDArrayComparator("", arrayColumn, arrayType, comparator)
+
+				Expect(mods).To(HaveLen(1))
+			})
+		})
+	})
+
 	Describe("ModsForEnumArrayComparator", func() {
 		type TestEnum string
 

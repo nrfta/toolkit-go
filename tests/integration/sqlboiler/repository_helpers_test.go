@@ -52,8 +52,9 @@ type ProductFilter struct {
 	Description *comparators.NullableString
 	Status      *comparators.Enum[string]
 	IsAvailable *comparators.Boolean
-	Tags        *comparators.ID
-	Categories  *comparators.ID
+	Tags         *comparators.ID
+	NullableTags *comparators.NullableID
+	Categories   *comparators.ID
 	CreatedAt   *comparators.Date
 	UpdatedAt   *comparators.NullableDate
 }
@@ -80,6 +81,7 @@ func NewProductRepository(db *sql.DB) *ProductRepository {
 		mods = append(mods, sqlboiler.ModsForEnumComparator("products", "status", f.Status)...)
 		mods = append(mods, sqlboiler.ModsForBooleanComparator("products", "is_available", f.IsAvailable)...)
 		mods = append(mods, sqlboiler.ModsForIDArrayComparator("products", "tags", "text", f.Tags)...)
+		mods = append(mods, sqlboiler.ModsForNullableIDArrayComparator("products", "tags", "text", f.NullableTags)...)
 		mods = append(mods, sqlboiler.ModsForIDArrayComparator("products", "categories", "text", f.Categories)...)
 		mods = append(mods, sqlboiler.ModsForDateComparator("products", "created_at", f.CreatedAt)...)
 		mods = append(mods, sqlboiler.ModsForNullableDateComparator("products", "updated_at", f.UpdatedAt)...)

@@ -783,6 +783,87 @@ func ModsForIDArrayComparator(
 	return queryMods
 }
 
+// ModsForNullableIDArrayComparator generates query mods for NullableID comparators on PostgreSQL
+// array columns where NULL or empty array means "universal" (matches everything).
+// When Null=true is combined with value filters (Eq, In), they are ORed — matching
+// "universal" rows (NULL/empty) plus rows with matching values.
+// The arrayType parameter specifies the PostgreSQL array element type for casting (e.g., "text", "public.xid").
+func ModsForNullableIDArrayComparator(
+	tableName,
+	columnName, arrayType string,
+	comparator *comparators.NullableID,
+) []qm.QueryMod {
+	if comparator == nil {
+		return nil
+	}
+
+	var queryMods []qm.QueryMod
+	columnName = formatColumnName(tableName, columnName)
+	emptyArray := "(" + columnName + " IS NULL OR cardinality(" + columnName + ") = 0)"
+	nullTrue := comparator.Null != nil && *comparator.Null
+
+	// Eq filter: array contains single element
+	if comparator.Eq != nil {
+		if nullTrue {
+			// OR: universal (NULL/empty) OR contains element
+			queryMods = append(queryMods, qm.Where(
+				fmt.Sprintf("(%s OR ?::%s = ANY(%s))", emptyArray, arrayType, columnName),
+				comparator.Eq,
+			))
+		} else {
+			queryMods = append(queryMods, qm.Where(
+				fmt.Sprintf("?::%s = ANY(%s)", arrayType, columnName),
+				comparator.Eq,
+			))
+		}
+	}
+
+	// In filter: array overlaps with list
+	if len(comparator.In) > 0 {
+		if nullTrue {
+			// OR: universal (NULL/empty) OR overlaps with requested IDs
+			queryMods = append(queryMods, qm.Where(
+				fmt.Sprintf("(%s OR ARRAY[%s]::%s[] && %s)", emptyArray, placeholders(len(comparator.In)), arrayType, columnName),
+				WhereInSet(comparator.In)...,
+			))
+		} else {
+			queryMods = append(queryMods, qm.Where(
+				fmt.Sprintf("ARRAY[%s]::%s[] && %s", placeholders(len(comparator.In)), arrayType, columnName),
+				WhereInSet(comparator.In)...,
+			))
+		}
+	}
+
+	// Neq filter: array does not contain single element
+	if comparator.Neq != nil {
+		queryMods = append(queryMods, qm.Where(
+			fmt.Sprintf("?::%s != ALL(%s)", arrayType, columnName),
+			comparator.Neq,
+		))
+	}
+
+	// Nin filter: array does not overlap with the list
+	if len(comparator.Nin) > 0 {
+		queryMods = append(queryMods, qm.Where(
+			fmt.Sprintf("NOT (%s && ARRAY[%s]::%s[])", columnName, placeholders(len(comparator.Nin)), arrayType),
+			WhereInSet(comparator.Nin)...,
+		))
+	}
+
+	// Standalone Null constraint (only when no Eq/In already handled it)
+	if comparator.Null != nil && comparator.Eq == nil && len(comparator.In) == 0 {
+		if *comparator.Null {
+			queryMods = append(queryMods, qm.Where(emptyArray))
+		} else {
+			queryMods = append(queryMods, qm.Where(
+				fmt.Sprintf("%s IS NOT NULL AND cardinality(%s) > 0", columnName, columnName),
+			))
+		}
+	}
+
+	return queryMods
+}
+
 // ModsForEnumArrayComparator generates query mods for Enum comparators on PostgreSQL array columns.
 // The arrayType parameter specifies the PostgreSQL array element type for casting (e.g., "text", "status").
 func ModsForEnumArrayComparator[T ~string](
