@@ -218,6 +218,144 @@ var _ = Describe("Array Comparator Integration Tests", func() {
 		})
 	})
 
+	Describe("ModsForNullableIDArrayComparator", func() {
+		var (
+			populatedProduct *models.Product // tags = {"electronics", "gadgets"}
+			emptyProduct     *models.Product // tags = {} (empty array)
+			nullProduct      *models.Product // tags = NULL
+		)
+
+		boolPtr := func(v bool) *bool { return &v }
+
+		BeforeEach(func() {
+			var err error
+
+			// Product with populated tags
+			populatedProduct, err = SeedOneProduct(ctx, db)
+			Expect(err).NotTo(HaveOccurred())
+			populatedProduct.Tags = types.StringArray{"electronics", "gadgets"}
+			_, err = populatedProduct.Update(ctx, db, boil.Whitelist("tags"))
+			Expect(err).NotTo(HaveOccurred())
+
+			// Product with empty array tags
+			emptyProduct, err = SeedOneProduct(ctx, db)
+			Expect(err).NotTo(HaveOccurred())
+			emptyProduct.Tags = types.StringArray{}
+			_, err = emptyProduct.Update(ctx, db, boil.Whitelist("tags"))
+			Expect(err).NotTo(HaveOccurred())
+
+			// Product with NULL tags
+			nullProduct, err = SeedOneProduct(ctx, db)
+			Expect(err).NotTo(HaveOccurred())
+			nullProduct.Tags = nil
+			_, err = nullProduct.Update(ctx, db, boil.Whitelist("tags"))
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("Null=true: returns products with NULL or empty tags", func() {
+			filters := []ProductFilter{
+				{NullableTags: &comparators.NullableID{Null: boolPtr(true)}},
+			}
+
+			results, err := repo.GetAll(ctx, filters...)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(results).To(HaveLen(2))
+
+			ids := []string{results[0].ID, results[1].ID}
+			Expect(ids).To(ContainElement(emptyProduct.ID))
+			Expect(ids).To(ContainElement(nullProduct.ID))
+		})
+
+		It("Null=false: returns only products with non-empty tags", func() {
+			filters := []ProductFilter{
+				{NullableTags: &comparators.NullableID{Null: boolPtr(false)}},
+			}
+
+			results, err := repo.GetAll(ctx, filters...)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(results).To(HaveLen(1))
+			Expect(results[0].ID).To(Equal(populatedProduct.ID))
+		})
+
+		It("Eq (ANY): returns products containing the tag", func() {
+			tag := "electronics"
+			filters := []ProductFilter{
+				{NullableTags: &comparators.NullableID{Eq: &tag}},
+			}
+
+			results, err := repo.GetAll(ctx, filters...)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(results).To(HaveLen(1))
+			Expect(results[0].ID).To(Equal(populatedProduct.ID))
+		})
+
+		It("In (overlap): returns products with any of the listed tags", func() {
+			filters := []ProductFilter{
+				{NullableTags: &comparators.NullableID{In: []string{"electronics", "food"}}},
+			}
+
+			results, err := repo.GetAll(ctx, filters...)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(results).To(HaveLen(1))
+			Expect(results[0].ID).To(Equal(populatedProduct.ID))
+		})
+
+		It("Null=true + In (OR): returns universal + matching products", func() {
+			filters := []ProductFilter{
+				{NullableTags: &comparators.NullableID{
+					Null: boolPtr(true),
+					In:   []string{"electronics"},
+				}},
+			}
+
+			results, err := repo.GetAll(ctx, filters...)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(results).To(HaveLen(3))
+		})
+
+		It("Null=true + Eq (OR): returns universal + products containing the tag", func() {
+			tag := "gadgets"
+			filters := []ProductFilter{
+				{NullableTags: &comparators.NullableID{
+					Null: boolPtr(true),
+					Eq:   &tag,
+				}},
+			}
+
+			results, err := repo.GetAll(ctx, filters...)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(results).To(HaveLen(3))
+		})
+
+		It("Neq (NOT ALL): excludes products containing the tag", func() {
+			tag := "electronics"
+			filters := []ProductFilter{
+				{NullableTags: &comparators.NullableID{Neq: &tag}},
+			}
+
+			results, err := repo.GetAll(ctx, filters...)
+			Expect(err).NotTo(HaveOccurred())
+			// NULL/empty products return NULL for ALL() comparison, which excludes them
+			// from != ALL results in PostgreSQL. Only populated non-matching products pass.
+			// Since our only populated product HAS "electronics", 0 results.
+			for _, r := range results {
+				Expect(r.Tags).NotTo(ContainElement("electronics"))
+			}
+		})
+
+		It("Nin (NOT overlap): excludes products overlapping with the list", func() {
+			filters := []ProductFilter{
+				{NullableTags: &comparators.NullableID{Nin: []string{"electronics", "gadgets"}}},
+			}
+
+			results, err := repo.GetAll(ctx, filters...)
+			Expect(err).NotTo(HaveOccurred())
+			for _, r := range results {
+				Expect(r.ID).NotTo(Equal(populatedProduct.ID))
+			}
+		})
+	})
+
 	Describe("Array with NULL values", func() {
 		It("should handle products with NULL arrays", func() {
 			// Create a product with NULL tags manually
