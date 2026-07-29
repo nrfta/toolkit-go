@@ -53,11 +53,15 @@ var _ = Describe("Client", func() {
 				Entry("non-http scheme", "ftp://localhost:3000/api/graphql"),
 			)
 
-			It("does not leak an embedded password in the error", func() {
-				_, err := token_exchange.NewClient(http.DefaultClient, "ftp://user:s3cret@localhost/api/graphql", "public", "secret")
-				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).NotTo(ContainSubstring("s3cret"))
-			})
+			DescribeTable("does not leak an embedded password in the error",
+				func(apiURL string) {
+					_, err := token_exchange.NewClient(http.DefaultClient, apiURL, "public", "secret")
+					Expect(errors.Is(err, token_exchange.ErrInvalidAPIURL)).To(BeTrue())
+					Expect(err.Error()).NotTo(ContainSubstring("s3cret"))
+				},
+				Entry("rejected by validation", "ftp://user:s3cret@localhost/api/graphql"),
+				Entry("rejected by url.Parse", "http://user:s3cret@[::1:80/api/graphql"),
+			)
 		})
 
 		Context("with a valid configuration", func() {

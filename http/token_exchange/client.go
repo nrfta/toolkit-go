@@ -62,6 +62,12 @@ func NewClient(httpClient *http.Client, apiURL string, publicToken string, secre
 
 	u, err := url.Parse(apiURL)
 	if err != nil {
+		// url.Error repeats the raw apiURL, which may carry credentials. Keep
+		// only the reason, consistent with the redaction below.
+		var parseErr *url.Error
+		if errors.As(err, &parseErr) {
+			err = parseErr.Err
+		}
 		return nil, fmt.Errorf("%w: %w", ErrInvalidAPIURL, err)
 	}
 	// The conditions net/http.Transport.roundTrip applies to every request URL.
