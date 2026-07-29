@@ -4,14 +4,24 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
-	"log"
 	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
 	"sync"
 	"time"
+)
+
+// Errors returned by NewClient when required configuration is missing or
+// unusable. Callers can assert on these with errors.Is to distinguish which
+// value was at fault.
+var (
+	ErrMissingAPIURL      = errors.New("token_exchange: apiURL is required")
+	ErrMissingPublicToken = errors.New("token_exchange: publicToken is required")
+	ErrMissingSecretToken = errors.New("token_exchange: secretToken is required")
+	ErrInvalidAPIURL      = errors.New("token_exchange: apiURL is not a valid absolute URL")
 )
 
 type tokenResponse struct {
@@ -34,28 +44,44 @@ type Client struct {
 	lock                   sync.Mutex
 }
 
-// NewClient creates a new client for the Token Exchange API
-func NewClient(httpClient *http.Client, apiURL string, publicToken string, secretToken string) *Client {
-	client := &Client{
+// NewClient creates a new client for the Token Exchange API.
+//
+// apiURL, publicToken and secretToken are required. apiURL must be an absolute
+// http or https URL with a host.
+// Only the scheme and host of the given apiURL will be used.
+func NewClient(httpClient *http.Client, apiURL string, publicToken string, secretToken string) (*Client, error) {
+	if apiURL == "" {
+		return nil, ErrMissingAPIURL
+	}
+	if publicToken == "" {
+		return nil, ErrMissingPublicToken
+	}
+	if secretToken == "" {
+		return nil, ErrMissingSecretToken
+	}
+
+	u, err := url.Parse(apiURL)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrInvalidAPIURL, err)
+	}
+	// The conditions net/http.Transport.roundTrip applies to every request URL.
+	if (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		return nil, fmt.Errorf(
+			"%w: expected an http or https scheme and a host, got %q",
+			ErrInvalidAPIURL, u.Redacted(),
+		)
+	}
+
+	// Take only the scheme and host from apiURL; any path, query, fragment or
+	// userinfo it carries is irrelevant to the token exchange endpoint.
+	authUrl := url.URL{Scheme: u.Scheme, Host: u.Host, Path: "/api/auth/token"}
+
+	return &Client{
 		httpClient:  httpClient,
-		authUrl:     "https://app.underline.com/api/auth/token",
+		authUrl:     authUrl.String(),
 		publicToken: publicToken,
 		secretToken: secretToken,
-	}
-
-	if apiURL != "" {
-		u, err := url.Parse(apiURL)
-		if err != nil {
-			log.Printf("Error parsing url for Client Token Exchange: %s using default %s", err, client.authUrl)
-			return client
-		}
-
-		u.Path = "/api/auth/token"
-
-		client.authUrl = u.String()
-	}
-
-	return client
+	}, nil
 }
 
 // GetAccessToken gets the access token for the client
