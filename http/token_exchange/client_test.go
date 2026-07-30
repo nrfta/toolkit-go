@@ -14,23 +14,29 @@ import (
 
 var _ = Describe("Client", func() {
 	Describe("NewClient", func() {
-		Context("with missing configuration", func() {
-			It("requires apiURL", func() {
+		Context("with a missing argument", func() {
+			It("rejects a nil httpClient", func() {
+				client, err := token_exchange.NewClient(nil, "http://localhost:3000/api/graphql", "public", "secret")
+				Expect(client).To(BeNil())
+				Expect(errors.Is(err, token_exchange.ErrNilHTTPClient)).To(BeTrue())
+			})
+
+			It("rejects an empty apiURL", func() {
 				client, err := token_exchange.NewClient(http.DefaultClient, "", "public", "secret")
 				Expect(client).To(BeNil())
-				Expect(errors.Is(err, token_exchange.ErrMissingAPIURL)).To(BeTrue())
+				Expect(errors.Is(err, token_exchange.ErrEmptyAPIURL)).To(BeTrue())
 			})
 
-			It("requires publicToken", func() {
+			It("rejects an empty publicToken", func() {
 				client, err := token_exchange.NewClient(http.DefaultClient, "http://localhost:3000/api/graphql", "", "secret")
 				Expect(client).To(BeNil())
-				Expect(errors.Is(err, token_exchange.ErrMissingPublicToken)).To(BeTrue())
+				Expect(errors.Is(err, token_exchange.ErrEmptyPublicToken)).To(BeTrue())
 			})
 
-			It("requires secretToken", func() {
+			It("rejects an empty secretToken", func() {
 				client, err := token_exchange.NewClient(http.DefaultClient, "http://localhost:3000/api/graphql", "public", "")
 				Expect(client).To(BeNil())
-				Expect(errors.Is(err, token_exchange.ErrMissingSecretToken)).To(BeTrue())
+				Expect(errors.Is(err, token_exchange.ErrEmptySecretToken)).To(BeTrue())
 			})
 		})
 
@@ -51,6 +57,8 @@ var _ = Describe("Client", func() {
 				Entry("scheme-relative", "//localhost:3000"),
 				Entry("path only", "/api/graphql"),
 				Entry("non-http scheme", "ftp://localhost:3000/api/graphql"),
+				// Host is ":123", which net/http would accept and dial as localhost.
+				Entry("port with no host", "http://:123"),
 			)
 
 			DescribeTable("does not leak an embedded password in the error",
@@ -74,6 +82,7 @@ var _ = Describe("Client", func() {
 				Entry("http with a path", "http://localhost:3000/api/graphql"),
 				Entry("https with a path", "https://app.underline.com/api/graphql"),
 				Entry("no path", "http://localhost:3000"),
+				Entry("bracketed ipv6 host", "http://[::1]:8080/api/graphql"),
 			)
 		})
 	})

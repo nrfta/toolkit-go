@@ -14,14 +14,14 @@ import (
 	"time"
 )
 
-// Errors returned by NewClient when required configuration is missing or
-// unusable. Callers can assert on these with errors.Is to distinguish which
-// value was at fault.
+// Errors returned by NewClient when httpClient is nil, when apiURL, publicToken
+// or secretToken is empty, or when apiURL is not a usable endpoint.
 var (
-	ErrMissingAPIURL      = errors.New("token_exchange: apiURL is required")
-	ErrMissingPublicToken = errors.New("token_exchange: publicToken is required")
-	ErrMissingSecretToken = errors.New("token_exchange: secretToken is required")
-	ErrInvalidAPIURL      = errors.New("token_exchange: apiURL is not a valid absolute URL")
+	ErrNilHTTPClient    = errors.New("token_exchange: nil httpClient")
+	ErrEmptyAPIURL      = errors.New("token_exchange: empty apiURL")
+	ErrEmptyPublicToken = errors.New("token_exchange: empty publicToken")
+	ErrEmptySecretToken = errors.New("token_exchange: empty secretToken")
+	ErrInvalidAPIURL    = errors.New("token_exchange: invalid apiURL")
 )
 
 type tokenResponse struct {
@@ -46,18 +46,21 @@ type Client struct {
 
 // NewClient creates a new client for the Token Exchange API.
 //
-// apiURL, publicToken and secretToken are required. apiURL must be an absolute
-// http or https URL with a host.
+// httpClient must be non-nil, and apiURL, publicToken and secretToken must be
+// non-empty. apiURL must be an absolute http or https URL with a host.
 // Only the scheme and host of the given apiURL will be used.
 func NewClient(httpClient *http.Client, apiURL string, publicToken string, secretToken string) (*Client, error) {
+	if httpClient == nil {
+		return nil, ErrNilHTTPClient
+	}
 	if apiURL == "" {
-		return nil, ErrMissingAPIURL
+		return nil, ErrEmptyAPIURL
 	}
 	if publicToken == "" {
-		return nil, ErrMissingPublicToken
+		return nil, ErrEmptyPublicToken
 	}
 	if secretToken == "" {
-		return nil, ErrMissingSecretToken
+		return nil, ErrEmptySecretToken
 	}
 
 	u, err := url.Parse(apiURL)
@@ -70,8 +73,11 @@ func NewClient(httpClient *http.Client, apiURL string, publicToken string, secre
 		}
 		return nil, fmt.Errorf("%w: %w", ErrInvalidAPIURL, err)
 	}
-	// The conditions net/http.Transport.roundTrip applies to every request URL.
-	if (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+
+	// net/http.Transport.roundTrip requires an http or https scheme. It would
+	// also accept an authority like ":123" and dial localhost, so require a
+	// hostname rather than just a non-empty Host.
+	if (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" {
 		return nil, fmt.Errorf(
 			"%w: expected an http or https scheme and a host, got %q",
 			ErrInvalidAPIURL, u.Redacted(),
