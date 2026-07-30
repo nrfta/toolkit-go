@@ -4,14 +4,24 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
-	"log"
 	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
 	"sync"
 	"time"
+)
+
+// Errors returned by NewClient when httpClient is nil, when apiURL, publicToken
+// or secretToken is empty, or when apiURL is not a usable endpoint.
+var (
+	ErrNilHTTPClient    = errors.New("token_exchange: nil httpClient")
+	ErrEmptyAPIURL      = errors.New("token_exchange: empty apiURL")
+	ErrEmptyPublicToken = errors.New("token_exchange: empty publicToken")
+	ErrEmptySecretToken = errors.New("token_exchange: empty secretToken")
+	ErrInvalidAPIURL    = errors.New("token_exchange: invalid apiURL")
 )
 
 type tokenResponse struct {
@@ -34,28 +44,56 @@ type Client struct {
 	lock                   sync.Mutex
 }
 
-// NewClient creates a new client for the Token Exchange API
-func NewClient(httpClient *http.Client, apiURL string, publicToken string, secretToken string) *Client {
-	client := &Client{
+// NewClient creates a new client for the Token Exchange API.
+//
+// httpClient must be non-nil, and apiURL, publicToken and secretToken must be
+// non-empty. apiURL must be an absolute http or https URL with a host.
+// Only the scheme and host of the given apiURL will be used.
+func NewClient(httpClient *http.Client, apiURL string, publicToken string, secretToken string) (*Client, error) {
+	if httpClient == nil {
+		return nil, ErrNilHTTPClient
+	}
+	if apiURL == "" {
+		return nil, ErrEmptyAPIURL
+	}
+	if publicToken == "" {
+		return nil, ErrEmptyPublicToken
+	}
+	if secretToken == "" {
+		return nil, ErrEmptySecretToken
+	}
+
+	u, err := url.Parse(apiURL)
+	if err != nil {
+		// url.Error repeats the raw apiURL, which may carry credentials. Keep
+		// only the reason, consistent with the redaction below.
+		var parseErr *url.Error
+		if errors.As(err, &parseErr) {
+			err = parseErr.Err
+		}
+		return nil, fmt.Errorf("%w: %w", ErrInvalidAPIURL, err)
+	}
+
+	// net/http.Transport.roundTrip requires an http or https scheme. It would
+	// also accept an authority like ":123" and dial localhost, so require a
+	// hostname rather than just a non-empty Host.
+	if (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" {
+		return nil, fmt.Errorf(
+			"%w: expected an http or https scheme and a host, got %q",
+			ErrInvalidAPIURL, u.Redacted(),
+		)
+	}
+
+	// Take only the scheme and host from apiURL; any path, query, fragment or
+	// userinfo it carries is irrelevant to the token exchange endpoint.
+	authUrl := url.URL{Scheme: u.Scheme, Host: u.Host, Path: "/api/auth/token"}
+
+	return &Client{
 		httpClient:  httpClient,
-		authUrl:     "https://app.underline.com/api/auth/token",
+		authUrl:     authUrl.String(),
 		publicToken: publicToken,
 		secretToken: secretToken,
-	}
-
-	if apiURL != "" {
-		u, err := url.Parse(apiURL)
-		if err != nil {
-			log.Printf("Error parsing url for Client Token Exchange: %s using default %s", err, client.authUrl)
-			return client
-		}
-
-		u.Path = "/api/auth/token"
-
-		client.authUrl = u.String()
-	}
-
-	return client
+	}, nil
 }
 
 // GetAccessToken gets the access token for the client
