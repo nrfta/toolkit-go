@@ -11,7 +11,7 @@ require (
 	github.com/graph-gophers/dataloader/v7 v7.2.0
 	github.com/lib/pq v1.12.3
 	github.com/neighborly/go-errors v0.4.1
-	github.com/nrfta/paging-go/v2 v2.1.1
+	github.com/nrfta/paging-go/v2 v2.1.2
 	github.com/onsi/ginkgo/v2 v2.33.1
 	github.com/onsi/gomega v1.44.0
 	github.com/rs/xid v1.6.0
